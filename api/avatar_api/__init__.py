@@ -5,10 +5,10 @@ from angelovich.core.DataStorage import (
 	EntityHashComponent,
 )
 from angelovich.core.Dispatcher import Dispatcher
-from angelovich.core.Environment import Environment
 from angelovich.core.Plugin import Plugin
 from angelovich.core.System import System, TimeSystem
 
+from avatar_api.env import Env
 from avatar_api.registry import TypeRegistry
 
 __all__ = [
@@ -17,7 +17,7 @@ __all__ = [
 	"Entity",
 	"EntityComponent",
 	"EntityHashComponent",
-	"Environment",
+	"Env",
 	"Plugin",
 	"System",
 	"TimeSystem",

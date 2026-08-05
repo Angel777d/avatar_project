@@ -1,12 +1,12 @@
 from typing import List, Set
 
-from avatar_api import Environment, Plugin, System
+from avatar_api import Env, Plugin, System
 
 from avatar_default.system import AvatarSystem
 
 
 class AvatarPlugin(Plugin):
-	def get_systems(self, env: Environment) -> List[System]:
+	def get_systems(self, env: Env) -> List[System]:
 		return [AvatarSystem(env)]
 
 	@staticmethod

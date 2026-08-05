@@ -4,7 +4,7 @@ import time
 from collections import deque
 from typing import Deque, Optional
 
-from avatar_api import Environment, System, events
+from avatar_api import Env, System, events
 from avatar_api.components import NotificationEC
 
 from avatar_default.widget import EVENT_CLICKED, EVENT_MOVED, EVENT_QUIT, AvatarWidget
@@ -27,7 +27,7 @@ PHRASES = [
 
 
 class AvatarSystem(System):
-	def __init__(self, env: Environment):
+	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__widget: Optional[AvatarWidget] = None
 		self.__queue: Deque[NotificationEC] = deque()
@@ -73,9 +73,8 @@ class AvatarSystem(System):
 		pass
 
 	async def __on_quit(self):
-		close_event = getattr(self.env, "close_event", None)
-		if close_event:
-			close_event.set()
+		if self.env.close_event:
+			self.env.close_event.set()
 
 	async def __animate(self):
 		while True:

@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from avatar_api import Entity, Environment, System
+from avatar_api import Entity, Env, System
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_ui.window import HtmlWindow
 
@@ -23,7 +23,7 @@ SEED = (
 
 
 class KanbanSystem(System):
-	def __init__(self, env: Environment):
+	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__board: Optional[Board] = None
 		self.__window: Optional[HtmlWindow] = None
