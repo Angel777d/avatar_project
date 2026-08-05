@@ -7,7 +7,7 @@ from typing import Deque, Optional
 from avatar_api import Env, System, events
 from avatar_api.components import NotificationEC
 
-from avatar_default.widget import EVENT_CLICKED, EVENT_MOVED, EVENT_QUIT, AvatarWidget
+from avatar_default.widget import EVENT_CLICKED, EVENT_MOVED, AvatarWidget
 
 SOURCE = "avatar"
 SOURCE_CLICK = "avatar.click"
@@ -37,13 +37,12 @@ class AvatarSystem(System):
 		self.__last_shown = time.monotonic()
 
 	async def start(self):
-		self.__widget = AvatarWidget(self.env.event_bus)
+		self.__widget = AvatarWidget(self.env)
 		self.__widget.show()
 
 		self.add_listener(events.REQUEST_NOTIFICATION_SHOW, self.__on_notification)
 		self.add_listener(EVENT_CLICKED, self.__on_clicked)
 		self.add_listener(EVENT_MOVED, self.__on_moved)
-		self.add_listener(EVENT_QUIT, self.__on_quit)
 
 		self.add_task(self.__animate())
 		self.add_task(self.__speak())
@@ -71,10 +70,6 @@ class AvatarSystem(System):
 
 	async def __on_moved(self, position):
 		pass
-
-	async def __on_quit(self):
-		if self.env.close_event:
-			self.env.close_event.set()
 
 	async def __animate(self):
 		while True:

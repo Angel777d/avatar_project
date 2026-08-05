@@ -10,6 +10,7 @@ from avatar_kanban.components import COLUMNS, KanbanTaskEC
 
 PAGE = Path(__file__).resolve().parent / "board.html"
 
+EVENT_OPEN = "request.kanban.open"
 EVENT_MOVE = "request.kanban.move"
 EVENT_ADD = "request.kanban.add"
 EVENT_DELETE = "request.kanban.delete"

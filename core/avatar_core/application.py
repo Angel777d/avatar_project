@@ -7,6 +7,7 @@ from angelovich.core.Plugin import Plugin, discover_plugins
 from angelovich.core.System import System
 
 from avatar_api.env import Env
+from avatar_core.core_system import CoreSystem
 from avatar_core.plugin_policy import PLUGINS_ENABLED_BY_DEFAULT, select_plugins
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class Application:
 	             tick_time: float = TICK_TIME):
 		self.env = env
 		self.__tick_time = tick_time
-		self.systems: List[System] = list(systems)
+		self.systems: List[System] = [CoreSystem(env)] + list(systems)
 		self.plugins: List[Plugin] = select_plugins(
 			discover_plugins(PLUGIN_GROUP, disabled_plugins),
 			enabled_plugins,

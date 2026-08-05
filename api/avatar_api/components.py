@@ -58,3 +58,10 @@ class NotificationEC(EntityComponent):
 		self.text: str = text
 		self.source: str = source
 		self.created: datetime = datetime.now()
+
+
+class MenuItemEC(EntityComponent):
+	def __init__(self, name: str = "", event: str = ""):
+		super().__init__()
+		self.name: str = name
+		self.event: str = event

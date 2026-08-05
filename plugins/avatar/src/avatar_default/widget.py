@@ -1,5 +1,6 @@
 import math
 import random
+from typing import Callable, List, Tuple
 
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import (
@@ -12,11 +13,11 @@ from PySide6.QtGui import (
 	QRadialGradient,
 	QRegion,
 )
+from avatar_api.menu import menu_items
 from avatar_ui.transparent import TransparentWindow
 
 EVENT_CLICKED = "avatar.clicked"
 EVENT_MOVED = "avatar.moved"
-EVENT_QUIT = "avatar.quit"
 
 AVATAR_SIZE = 128
 BUBBLE_MAX_W = 236
@@ -25,9 +26,9 @@ BOB_AMPLITUDE = 5
 
 
 class AvatarWidget(TransparentWindow):
-	def __init__(self, bus):
+	def __init__(self, env):
 		super().__init__((BUBBLE_MAX_W + 2 * MARGIN, AVATAR_SIZE + 96))
-		self.__bus = bus
+		self.__env = env
 		self.__font = QFont("Segoe UI", 10)
 		self.__phase = 0.0
 		self.__blink = 0.0
@@ -77,13 +78,20 @@ class AvatarWidget(TransparentWindow):
 		self.update()
 
 	def on_click(self) -> None:
-		self.__bus.dispatch(EVENT_CLICKED)
+		self.__env.event_bus.dispatch(EVENT_CLICKED)
 
 	def on_drag_end(self, position: QPoint) -> None:
-		self.__bus.dispatch(EVENT_MOVED, position)
+		self.__env.event_bus.dispatch(EVENT_MOVED, position)
 
 	def on_context_menu(self, global_pos: QPoint) -> None:
-		self.show_menu(global_pos, {"Quit": lambda: self.__bus.dispatch(EVENT_QUIT)})
+		self.show_menu(global_pos, self.menu_actions())
+
+	def menu_actions(self) -> List[Tuple[str, Callable[[], None]]]:
+		bus = self.__env.event_bus
+		return [
+			(item.name, lambda event=item.event: bus.dispatch(event))
+			for item in menu_items(self.__env.data_storage)
+		]
 
 	def __apply_shape(self) -> None:
 		avatar = self.__avatar_rect.adjusted(0, -BOB_AMPLITUDE, 0, BOB_AMPLITUDE)

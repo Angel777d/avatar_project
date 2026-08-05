@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from avatar_api import Entity, Env, System
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
+from avatar_api.menu import add_menu_item
 from avatar_ui.window import HtmlWindow
 
 from avatar_kanban.components import COLUMNS, KanbanTaskEC
@@ -9,10 +10,13 @@ from avatar_kanban.window import (
 	EVENT_ADD,
 	EVENT_DELETE,
 	EVENT_MOVE,
+	EVENT_OPEN,
 	EVENT_RESET,
 	PAGE,
 	Board,
 )
+
+MENU_ITEM = "Open kanban"
 
 SEED = (
 	("todo", "Pick the UI layer"),
@@ -31,15 +35,13 @@ class KanbanSystem(System):
 	async def start(self):
 		self.__seed()
 
+		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
+
+		self.add_listener(EVENT_OPEN, self.__on_open)
 		self.add_listener(EVENT_MOVE, self.__on_move)
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_DELETE, self.__on_delete)
 		self.add_listener(EVENT_RESET, self.__on_reset)
-
-		self.__board = Board(self.env)
-		self.__window = HtmlWindow("Kanban", PAGE, {"board": self.__board})
-		self.__window.show()
-		self.add_task(self.__window.load())
 
 	async def stop(self):
 		await super().stop()
@@ -47,6 +49,18 @@ class KanbanSystem(System):
 			self.__window.close()
 			self.__window = None
 		self.__board = None
+
+	def __open(self):
+		if self.__window is None:
+			self.__board = Board(self.env)
+			self.__window = HtmlWindow("Kanban", PAGE, {"board": self.__board})
+			self.add_task(self.__window.load())
+		self.__window.show()
+		self.__window.raise_()
+		self.__window.activateWindow()
+
+	async def __on_open(self):
+		self.__open()
 
 	def __seed(self):
 		for column_id, title in SEED:

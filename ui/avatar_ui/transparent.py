@@ -1,4 +1,4 @@
-from typing import Callable, Mapping, Optional, Tuple
+from typing import Callable, Iterable, Optional, Tuple
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QAction, QGuiApplication, QRegion
@@ -24,13 +24,14 @@ class TransparentWindow(QWidget):
 	def set_shape(self, region: QRegion) -> None:
 		self.setMask(region)
 
-	def show_menu(self, global_pos: QPoint, actions: Mapping[str, Callable[[], None]]) -> None:
+	def show_menu(self, global_pos: QPoint, actions: Iterable[Tuple[str, Callable[[], None]]]) -> None:
 		menu = QMenu(self)
-		for title, callback in actions.items():
+		for title, callback in actions:
 			action = QAction(title, menu)
 			action.triggered.connect(lambda _checked=False, cb=callback: cb())
 			menu.addAction(action)
-		menu.exec(global_pos)
+		if menu.actions():
+			menu.exec(global_pos)
 
 	def on_click(self) -> None:
 		pass
