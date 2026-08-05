@@ -6,7 +6,7 @@ from typing import Collection, Iterable, List
 from angelovich.core.Plugin import Plugin, discover_plugins
 from angelovich.core.System import System
 
-from avatar_core.environment import Environment
+from avatar_api.env import Env
 from avatar_core.plugin_policy import PLUGINS_ENABLED_BY_DEFAULT, select_plugins
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ TICK_TIME = 1.0
 
 class Application:
 	def __init__(self,
-	             env: Environment,
+	             env: Env,
 	             systems: Iterable[System] = (),
 	             enabled_plugins: Collection[str] = (),
 	             disabled_plugins: Collection[str] = (),

@@ -1,12 +1,12 @@
 import asyncio
 from typing import Optional
 
-from angelovich.core.Environment import Environment as CoreEnvironment
+from angelovich.core.Environment import Environment
 
 from avatar_api.registry import TypeRegistry
 
 
-class Environment(CoreEnvironment):
+class Env(Environment):
 	def __init__(self):
 		super().__init__()
 		self.registry: TypeRegistry = TypeRegistry()
