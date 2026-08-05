@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendar</title>
+<style>
+  :root {
+    --bg: #16181d;
+    --panel: #1e2127;
+    --panel-edge: #2b2f38;
+    --card: #262a33;
+    --card-edge: #343945;
+    --text: #e6e8ec;
+    --muted: #8b93a3;
+    --accent: #4e96e6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px "Segoe UI", system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; }
+  header .hint { color: var(--muted); font-size: 12px; }
+  main { flex: 1; display: flex; gap: 16px; padding: 16px 18px; min-height: 0; }
+
+  #month { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .weekdays, .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .weekdays {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding-bottom: 6px;
+  }
+  .weekdays span { text-align: center; }
+  .week { margin-bottom: 6px; flex: 1; }
+  .day {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 54px;
+  }
+  .day:hover { border-color: var(--accent); }
+  .day.blank { background: transparent; border-color: transparent; cursor: default; }
+  .day.today .num { color: var(--accent); font-weight: 600; }
+  .day.selected { border-color: var(--accent); background: #232833; }
+  .num { font-size: 13px; }
+  .dots { display: flex; flex-wrap: wrap; gap: 3px; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+  #panel {
+    width: 300px;
+    flex: 0 0 300px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #panel h2 {
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+    padding: 12px 14px 8px;
+  }
+  #notes { list-style: none; margin: 0; padding: 0 10px 6px; overflow-y: auto; flex: 1; }
+  #notes li {
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    border-radius: 8px;
+    padding: 9px 11px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  #notes .title { flex: 1; line-height: 1.35; }
+  #notes .created { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+  #notes .kill {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  #notes .kill:hover { color: #e2686d; }
+  #notes .empty { background: none; border: none; color: var(--muted); padding: 4px 2px; }
+  .add { display: flex; padding: 0 10px 10px; }
+  .add input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font: inherit;
+    outline: none;
+  }
+  .add input:focus { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Calendar</h1>
+  <span class="hint">pick a day, then type to add a note</span>
+</header>
+<main>
+  <div id="month"></div>
+  <section id="panel">
+    <h2 id="panel-title">No day selected</h2>
+    <ul id="notes"></ul>
+    <div class="add">
+      <input id="new-note" placeholder="Add a note…" disabled>
+    </div>
+  </section>
+</main>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+let bridge = null;
+let selected = null;
+let latest = null;
+
+function dayCell(cell) {
+  const box = document.createElement("div");
+  if (!cell) {
+    box.className = "day blank";
+    return box;
+  }
+  box.className = "day";
+  if (cell.today) box.classList.add("today");
+  if (cell.date === selected) box.classList.add("selected");
+  box.dataset.date = cell.date;
+
+  const num = document.createElement("div");
+  num.className = "num";
+  num.textContent = cell.day;
+  box.appendChild(num);
+
+  const notes = (latest.notes[cell.date] || []);
+  if (notes.length) {
+    const dots = document.createElement("div");
+    dots.className = "dots";
+    notes.slice(0, 6).forEach(() => {
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dots.appendChild(dot);
+    });
+    box.appendChild(dots);
+  }
+
+  box.addEventListener("click", () => select(cell.date));
+  return box;
+}
+
+function renderMonth() {
+  const root = document.getElementById("month");
+  root.textContent = "";
+
+  const head = document.createElement("div");
+  head.className = "weekdays";
+  latest.weekdays.forEach((name) => {
+    const span = document.createElement("span");
+    span.textContent = name;
+    head.appendChild(span);
+  });
+  root.appendChild(head);
+
+  latest.weeks.forEach((week) => {
+    const row = document.createElement("div");
+    row.className = "week";
+    week.forEach((cell) => row.appendChild(dayCell(cell)));
+    root.appendChild(row);
+  });
+}
+
+function renderPanel() {
+  const title = document.getElementById("panel-title");
+  const list = document.getElementById("notes");
+  const input = document.getElementById("new-note");
+  list.textContent = "";
+
+  if (!selected) {
+    title.textContent = "No day selected";
+    input.disabled = true;
+    return;
+  }
+
+  title.textContent = selected;
+  input.disabled = false;
+
+  const notes = latest.notes[selected] || [];
+  if (!notes.length) {
+    const empty = document.createElement("li");
+    empty.className = "empty";
+    empty.textContent = "Nothing on this day yet.";
+    list.appendChild(empty);
+    return;
+  }
+
+  notes.forEach((note) => {
+    const item = document.createElement("li");
+
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = note.title;
+    const stamp = document.createElement("span");
+    stamp.className = "created";
+    stamp.textContent = note.created;
+    title.appendChild(stamp);
+
+    const kill = document.createElement("button");
+    kill.className = "kill";
+    kill.textContent = "×";
+    kill.addEventListener("click", () => bridge.delete_note(note.id));
+
+    item.append(title, kill);
+    list.appendChild(item);
+  });
+}
+
+function select(day) {
+  selected = day;
+  renderMonth();
+  renderPanel();
+  document.getElementById("new-note").focus();
+}
+
+function render(data) {
+  latest = data;
+  document.getElementById("title").textContent = data.title;
+  if (!selected) selected = data.today;
+  renderMonth();
+  renderPanel();
+}
+
+function refresh() {
+  bridge.snapshot((payload) => render(JSON.parse(payload)));
+}
+
+new QWebChannel(qt.webChannelTransport, (channel) => {
+  bridge = channel.objects.calendar;
+  bridge.changed.connect(refresh);
+
+  const input = document.getElementById("new-note");
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && input.value.trim() && selected) {
+      bridge.add_note(selected, input.value);
+      input.value = "";
+    }
+  });
+
+  refresh();
+});
+</script>
+</body>
+</html>
