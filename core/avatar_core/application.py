@@ -1,13 +1,15 @@
 import asyncio
 import logging
 import time
-from typing import Collection, Iterable, List
+from typing import Collection, Iterable, List, Optional
 
 from angelovich.core.Plugin import Plugin, discover_plugins
 from angelovich.core.System import System
 
+from avatar_api import events
 from avatar_api.env import Env
 from avatar_core.core_system import CoreSystem
+from avatar_core.storage import Storage
 from avatar_core.plugin_policy import PLUGINS_ENABLED_BY_DEFAULT, select_plugins
 
 logger = logging.getLogger(__name__)
@@ -23,9 +25,11 @@ class Application:
 	             enabled_plugins: Collection[str] = (),
 	             disabled_plugins: Collection[str] = (),
 	             enabled_by_default: bool = PLUGINS_ENABLED_BY_DEFAULT,
-	             tick_time: float = TICK_TIME):
+	             tick_time: float = TICK_TIME,
+	             storage: Optional[Storage] = None):
 		self.env = env
 		self.__tick_time = tick_time
+		self.storage = storage if storage is not None else Storage()
 		self.systems: List[System] = [CoreSystem(env)] + list(systems)
 		self.plugins: List[Plugin] = select_plugins(
 			discover_plugins(PLUGIN_GROUP, disabled_plugins),
@@ -55,6 +59,11 @@ class Application:
 		for system in self.systems:
 			await system.start()
 
+		await self.storage.open()
+		restored = await self.storage.load(env)
+		logger.info("restored %d entities", restored)
+		await env.event_bus.dispatch_async(events.ACTION_STORAGE_RESTORED, restored)
+
 		last_time = time.monotonic()
 		while not close_event.is_set():
 			current_time = time.monotonic()
@@ -70,6 +79,10 @@ class Application:
 			await asyncio.sleep(self.__tick_time)
 
 		logger.info("application stop")
+
+		saved = await self.storage.save(env)
+		await self.storage.close()
+		logger.info("saved %d entities", saved)
 
 		for system in self.systems:
 			try:

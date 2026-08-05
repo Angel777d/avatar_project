@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from avatar_api import Entity, Env, System
+from avatar_api import Entity, Env, System, events
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_ui.window import HtmlWindow
@@ -33,7 +33,9 @@ class KanbanSystem(System):
 		self.__window: Optional[HtmlWindow] = None
 
 	async def start(self):
-		self.__seed()
+		self.env.registry.register(KanbanTaskEC, "kanban_task")
+
+		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 
 		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
 
@@ -61,6 +63,10 @@ class KanbanSystem(System):
 
 	async def __on_open(self):
 		self.__open()
+
+	async def __on_restored(self, restored: int):
+		if not len(self.env.data_storage.get_collection(KanbanTaskEC)):
+			self.__seed()
 
 	def __seed(self):
 		for column_id, title in SEED:
