@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avatar.api"
+version = "0.1.0"
+description = "Shared vocabulary of the avatar project: components and event names"
+
+authors = [
+    { name = "Angelovich", email = "angel777da@gmail.com" },
+]
+
+requires-python = ">=3.13"
+dependencies = [
+    "angelovich.core >= 0.2.0",
+]
+
+license = "MIT"
+
+[tool.setuptools.packages.find]
+include = ["avatar_api*"]

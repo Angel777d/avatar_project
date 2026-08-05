@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avatar.core"
+version = "0.1.0"
+description = "Core of the avatar project: main loop, systems, plugins, storage"
+
+authors = [
+    { name = "Angelovich", email = "angel777da@gmail.com" },
+]
+
+requires-python = ">=3.13"
+dependencies = [
+    "angelovich.core >= 0.2.0",
+    "avatar.api >= 0.1.0",
+]
+
+license = "MIT"
+
+[tool.setuptools.packages.find]
+include = ["avatar_core*"]
