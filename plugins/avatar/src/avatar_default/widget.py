@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import (
@@ -13,6 +13,7 @@ from PySide6.QtGui import (
 	QRadialGradient,
 	QRegion,
 )
+from avatar_api.components import TimerEC
 from avatar_api.menu import menu_items
 from avatar_ui.transparent import TransparentWindow
 
@@ -20,6 +21,7 @@ EVENT_CLICKED = "avatar.clicked"
 EVENT_MOVED = "avatar.moved"
 
 AVATAR_SIZE = 128
+RING_WIDTH = 4
 BUBBLE_MAX_W = 236
 MARGIN = 14
 BOB_AMPLITUDE = 5
@@ -86,6 +88,19 @@ class AvatarWidget(TransparentWindow):
 	def on_context_menu(self, global_pos: QPoint) -> None:
 		self.show_menu(global_pos, self.menu_actions())
 
+	def timer_progress(self) -> Optional[float]:
+		timers = [
+			entity.get_component(TimerEC)
+			for entity in self.__env.data_storage.get_collection(TimerEC)
+		]
+		if not timers:
+			return None
+		timer = min(timers, key=lambda item: item.deadline())
+		span = timer.duration.total_seconds()
+		if span <= 0:
+			return 0.0
+		return max(0.0, min(1.0, timer.remaining() / span))
+
 	def menu_actions(self) -> List[Tuple[str, Callable[[], None]]]:
 		bus = self.__env.event_bus
 		return [
@@ -132,6 +147,18 @@ class AvatarWidget(TransparentWindow):
 			self.__bubble_text,
 		)
 
+	def __paint_ring(self, painter, rect) -> None:
+		left = self.timer_progress()
+		if left is None:
+			return
+
+		ring = rect.adjusted(2, 2, -2, -2)
+		painter.setBrush(Qt.NoBrush)
+		painter.setPen(QPen(QColor(255, 255, 255, 40), RING_WIDTH))
+		painter.drawEllipse(ring)
+		painter.setPen(QPen(QColor(255, 198, 109), RING_WIDTH, Qt.SolidLine, Qt.RoundCap))
+		painter.drawArc(ring, 90 * 16, -int(360 * 16 * left))
+
 	def __paint_avatar(self, painter) -> None:
 		rect = QRectF(self.__avatar_rect).translated(0, math.sin(self.__phase * 1.6) * BOB_AMPLITUDE)
 
@@ -145,6 +172,8 @@ class AvatarWidget(TransparentWindow):
 				12,
 			)
 		)
+
+		self.__paint_ring(painter, rect)
 
 		body = rect.adjusted(6, 6, -6, -6)
 		gradient = QRadialGradient(

@@ -60,6 +60,30 @@ class NotificationEC(EntityComponent):
 		self.created: datetime = datetime.now()
 
 
+class TimerEC(EntityHashComponent):
+	def __init__(self, name: str = "", started: Optional[datetime] = None, duration: timedelta = timedelta()):
+		super().__init__()
+		self.name: str = name
+		self.started: datetime = started or datetime.now()
+		self.duration: timedelta = duration
+
+	@staticmethod
+	def make_hash(name: str) -> Hashable:
+		return name
+
+	def __hash__(self):
+		return hash(self.name)
+
+	def deadline(self) -> datetime:
+		return self.started + self.duration
+
+	def remaining(self, now: Optional[datetime] = None) -> float:
+		return max(0.0, (self.deadline() - (now or datetime.now())).total_seconds())
+
+	def __repr__(self):
+		return f"TimerEC({self.name})"
+
+
 class MenuItemEC(EntityComponent):
 	def __init__(self, name: str = "", event: str = ""):
 		super().__init__()
