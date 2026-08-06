@@ -67,9 +67,49 @@
   button:hover:not(:disabled) { border-color: var(--accent); }
   button:disabled { color: var(--muted); cursor: default; opacity: .5; }
   #done { color: var(--muted); font-size: 12px; }
+  #cog {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    padding: 4px 9px;
+    color: var(--muted);
+  }
+  #settings {
+    display: none;
+    width: 100%;
+    max-width: 300px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 9px;
+    padding: 12px 14px;
+  }
+  body.settings-open #settings { display: block; }
+  #settings label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  #settings input {
+    width: 74px;
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font: inherit;
+    text-align: right;
+    outline: none;
+  }
+  #settings input:focus { border-color: var(--accent); }
+  #save { width: 100%; margin-top: 4px; }
 </style>
 </head>
 <body>
+  <button id="cog" title="Settings">settings</button>
   <div id="phase">Ready</div>
   <div id="dial">
     <svg width="190" height="190">
@@ -85,6 +125,14 @@
     <button id="reset">Reset</button>
   </div>
   <div id="done">0 done today</div>
+  <div id="settings">
+    <label>Focus, minutes <input id="s-work" type="number" min="1" max="180"></label>
+    <label>Short break <input id="s-short" type="number" min="1" max="180"></label>
+    <label>Long break <input id="s-long" type="number" min="1" max="180"></label>
+    <label>Long break every <input id="s-every" type="number" min="1" max="12"></label>
+    <label>Sequences in a row <input id="s-seq" type="number" min="1" max="24"></label>
+    <button id="save">Save</button>
+  </div>
 
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <script>
@@ -97,8 +145,22 @@ function clock(seconds) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function minutes(seconds) {
+  return Math.max(1, Math.round(seconds / 60));
+}
+
+function renderSettings(settings) {
+  if (document.activeElement && document.activeElement.tagName === "INPUT") return;
+  document.getElementById("s-work").value = minutes(settings.work);
+  document.getElementById("s-short").value = minutes(settings.short_break);
+  document.getElementById("s-long").value = minutes(settings.long_break);
+  document.getElementById("s-every").value = settings.long_break_every;
+  document.getElementById("s-seq").value = settings.sequences;
+}
+
 function render(data) {
-  document.body.className = data.phase;
+  const open = document.body.classList.contains("settings-open");
+  document.body.className = open ? `${data.phase} settings-open` : data.phase;
   document.getElementById("phase").textContent = data.label;
   document.getElementById("clock").textContent = clock(data.remaining);
 
@@ -110,8 +172,12 @@ function render(data) {
   document.getElementById("start").disabled = data.running;
   document.getElementById("pause").disabled = !data.running;
   document.getElementById("skip").disabled = data.phase === "idle";
-  document.getElementById("done").textContent =
-    `${data.done_today} done today`;
+  const parts = [`${data.done_today} done today`];
+  if (data.streak) parts.push(`${data.streak} in a row`);
+  if (data.sequences > 1 && data.phase !== "idle")
+    parts.push(`set ${data.sequence + 1} of ${data.sequences}`);
+  document.getElementById("done").textContent = parts.join(" · ");
+  renderSettings(data.settings);
 }
 
 function refresh() {
@@ -125,6 +191,14 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
   document.getElementById("pause").addEventListener("click", () => bridge.pause());
   document.getElementById("skip").addEventListener("click", () => bridge.skip());
   document.getElementById("reset").addEventListener("click", () => bridge.reset());
+  document.getElementById("cog").addEventListener("click", () =>
+    document.body.classList.toggle("settings-open"));
+  document.getElementById("save").addEventListener("click", () => {
+    const read = (id) => parseInt(document.getElementById(id).value, 10) || 0;
+    bridge.save_settings(read("s-work") * 60, read("s-short") * 60,
+                         read("s-long") * 60, read("s-every"), read("s-seq"));
+    document.body.classList.remove("settings-open");
+  });
   refresh();
 });
 </script>
