@@ -128,11 +128,32 @@ class TypeRegistry:
 			logger.warning("stored type '%s' is not registered, skipped", name)
 			return None
 
+		stored = payload.get(FIELDS_FIELD, {})
 		component = component_type.__new__(component_type)
 		EntityComponent.__init__(component)
-		for key, value in payload.get(FIELDS_FIELD, {}).items():
+		for key, value in stored.items():
 			setattr(component, key, decode_value(value))
+		self.__fill_missing(component_type, component, stored)
 		return component
+
+	def __fill_missing(self, component_type, component: EntityComponent, stored: dict) -> None:
+		declared = self.__fields[component_type]
+		expected = declared if declared is not None else None
+		if expected is not None and all(key in stored for key in expected):
+			return
+
+		try:
+			fresh = component_type()
+		except TypeError:
+			logger.warning("%s cannot be built without arguments, missing fields left unset",
+			               component_type.__name__)
+			return
+
+		for key, value in vars(fresh).items():
+			if key.startswith("_") or key in stored:
+				continue
+			logger.info("%s.%s was not stored, using the default", component_type.__name__, key)
+			setattr(component, key, value)
 
 	def encode_entity(self, entity: Entity) -> List[dict]:
 		payloads = []
