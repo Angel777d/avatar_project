@@ -45,6 +45,20 @@
 
 A plugin's own events are its own business — `request.kanban.*`, `request.pomodoro.*` and so on live with the plugin.
 
+## Launcher and release
+
+`supervisor/` is a .NET 9 `WinExe` (`avatar.exe`). It is the only thing a user runs.
+
+- **Development**: with no `bootstrap.json` beside it, it walks up from its own directory for `.venv\Scripts\pythonw.exe` and runs `experiments\host.py` from that root.
+- **Release**: `bootstrap.json` (see `bootstrap.example.json`) makes it provision instead — download a pinned standalone CPython, check its sha256, unpack, build a venv, `pip install` the configured packages, then run the configured entry module. The runtime lives in `%LOCALAPPDATA%vatar_projectuntime`.
+- Provisioning is skipped when a state file matches a fingerprint of the url, checksum, index and package list; change any of them and the next launch re-provisions.
+- A missing or wrong checksum refuses the download rather than running it. A malformed config refuses to start rather than falling back to discovery.
+- The child is assigned to a **job object**, so the app dies with the launcher however the launcher dies — otherwise a force-kill would orphan it and the next launch would give two avatars.
+- Restarts the app on failure (3 attempts by default), exits when the app exits cleanly, single instance via a global mutex, logs everything including the child's output to `%LOCALAPPDATA%vatar_project\launcher.log`.
+- Unpacking shells out to Windows' `tar.exe`; `System.Formats.Tar` mangles filenames in these archives.
+
+Still missing for a real release: the packages are not published anywhere, and `avatar_host` — the entry module that replaces `experiments/host.py` — does not exist yet.
+
 ## Data
 
 - Plugins share data as **components**, not tables. A plugin owning a concept owns its component class.
