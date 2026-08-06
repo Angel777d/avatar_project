@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pomodoro</title>
+<style>
+  :root {
+    --bg: #16181d;
+    --panel: #1e2127;
+    --panel-edge: #2b2f38;
+    --card: #262a33;
+    --card-edge: #343945;
+    --text: #e6e8ec;
+    --muted: #8b93a3;
+    --accent: #4e96e6;
+    --rest: #57b98a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px "Segoe UI", system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 20px;
+  }
+  #phase {
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  body.work #phase { color: var(--accent); }
+  body.break #phase { color: var(--rest); }
+
+  #dial { position: relative; width: 190px; height: 190px; }
+  #dial svg { transform: rotate(-90deg); }
+  #track { stroke: var(--panel-edge); }
+  #sweep { stroke: var(--muted); transition: stroke-dashoffset .3s linear; }
+  body.work #sweep { stroke: var(--accent); }
+  body.break #sweep { stroke: var(--rest); }
+  #clock {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #controls { display: flex; gap: 8px; }
+  button {
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 7px 16px;
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { color: var(--muted); cursor: default; opacity: .5; }
+  #done { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div id="phase">Ready</div>
+  <div id="dial">
+    <svg width="190" height="190">
+      <circle id="track" cx="95" cy="95" r="84" fill="none" stroke-width="10"></circle>
+      <circle id="sweep" cx="95" cy="95" r="84" fill="none" stroke-width="10" stroke-linecap="round"></circle>
+    </svg>
+    <div id="clock">25:00</div>
+  </div>
+  <div id="controls">
+    <button id="start">Start</button>
+    <button id="pause">Pause</button>
+    <button id="skip">Skip</button>
+    <button id="reset">Reset</button>
+  </div>
+  <div id="done">0 done today</div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+let bridge = null;
+const CIRCUMFERENCE = 2 * Math.PI * 84;
+
+function clock(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function render(data) {
+  document.body.className = data.phase;
+  document.getElementById("phase").textContent = data.label;
+  document.getElementById("clock").textContent = clock(data.remaining);
+
+  const left = data.total ? data.remaining / data.total : 0;
+  const sweep = document.getElementById("sweep");
+  sweep.style.strokeDasharray = CIRCUMFERENCE;
+  sweep.style.strokeDashoffset = CIRCUMFERENCE * (1 - left);
+
+  document.getElementById("start").disabled = data.running;
+  document.getElementById("pause").disabled = !data.running;
+  document.getElementById("skip").disabled = data.phase === "idle";
+  document.getElementById("done").textContent =
+    `${data.done_today} done today`;
+}
+
+function refresh() {
+  bridge.snapshot((payload) => render(JSON.parse(payload)));
+}
+
+new QWebChannel(qt.webChannelTransport, (channel) => {
+  bridge = channel.objects.pomodoro;
+  bridge.changed.connect(refresh);
+  document.getElementById("start").addEventListener("click", () => bridge.start());
+  document.getElementById("pause").addEventListener("click", () => bridge.pause());
+  document.getElementById("skip").addEventListener("click", () => bridge.skip());
+  document.getElementById("reset").addEventListener("click", () => bridge.reset());
+  refresh();
+});
+</script>
+</body>
+</html>
