@@ -50,7 +50,8 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 `supervisor/` is a .NET 9 `WinExe` (`avatar.exe`). It is the only thing a user runs.
 
 - **Development**: with no `bootstrap.json` beside it, it walks up from its own directory for `.venv\Scripts\pythonw.exe` and runs `experiments\host.py` from that root.
-- **Release**: `bootstrap.json` (see `bootstrap.example.json`) makes it provision instead — download a pinned standalone CPython, check its sha256, unpack, build a venv, `pip install` the configured packages, then run the configured entry module. The runtime lives in `%LOCALAPPDATA%vatar_projectuntime`.
+- **Release**: `bootstrap.json` (see `bootstrap.example.json`) makes it provision instead — download a pinned standalone CPython, check its sha256, unpack, build a venv, `pip install` the configured packages, then run the configured entry module. The runtime lives in `%LOCALAPPDATA%vatar_project
+untime`.
 - Provisioning is skipped when a state file matches a fingerprint of the url, checksum, index and package list; change any of them and the next launch re-provisions.
 - A missing or wrong checksum refuses the download rather than running it. A malformed config refuses to start rather than falling back to discovery.
 - The child is assigned to a **job object**, so the app dies with the launcher however the launcher dies — otherwise a force-kill would orphan it and the next launch would give two avatars.
