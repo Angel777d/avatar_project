@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avatar.host"
+version = "0.1.0"
+description = "Qt entry point of the avatar project"
+
+authors = [
+    { name = "Angelovich", email = "angel777da@gmail.com" },
+]
+
+requires-python = ">=3.13"
+dependencies = [
+    "avatar.core >= 0.1.0",
+    "PySide6 >= 6.9",
+]
+
+license = "MIT"
+
+[project.gui-scripts]
+avatar-host = "avatar_host:main"
+
+[tool.setuptools.packages.find]
+include = ["avatar_host*"]

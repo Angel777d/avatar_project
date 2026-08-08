@@ -13,13 +13,17 @@ Right-click the avatar for the menu; everything else opens from there.
 ## Run
 
 ```
-.venv\Scripts\python.exe experiments\host.py
+setup.bat        build the environment and install everything from github
+run.bat          start it
 ```
 
-`experiments/host.py` is scaffolding until `supervisor/` exists. Packages install editable:
+`setup.bat --run` does both. It finds python 3.13+ or downloads one, so a machine needs nothing installed beyond git.
+
+Working from a checkout instead:
 
 ```
-pip install -e ../py_core -e api -e ui -e core -e plugins/avatar -e plugins/kanban -e plugins/calendar -e plugins/pomodoro
+pip install -e ../py_core -e api -e ui -e core -e host -e plugins/avatar -e plugins/kanban -e plugins/calendar -e plugins/pomodoro
+.venv\Scripts\pythonw.exe -m avatar_host
 ```
 
 Packages, the plugin contract and the data model are in [ARCHITECTURE.md](ARCHITECTURE.md).

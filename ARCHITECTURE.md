@@ -7,6 +7,7 @@
 | `angelovich.core` | ECS `DataStorage`, `Dispatcher`, `System`, plugin discovery (sibling repo `../py_core`) | — |
 | `avatar.api` | components, event names, `Env`, `TypeRegistry` | `angelovich.core` |
 | `avatar.core` | main loop, systems, plugin policy, storage, timers | `avatar.api` |
+| `avatar.host` | the Qt entry point: `QApplication`, `QtAsyncio`, `avatar_host` | `avatar.core`, PySide6 |
 | `avatar.ui` | `HtmlWindow`, `TransparentWindow` | PySide6 |
 | `plugins/*` | `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro` | `avatar.api`, `avatar.ui` |
 
@@ -57,7 +58,9 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 - Restarts the app on failure (3 attempts by default), exits when the app exits cleanly, single instance via a global mutex, logs everything including the child's output to `%LOCALAPPDATA%\avatar_project\launcher.log`.
 - Unpacking shells out to Windows' `tar.exe`; `System.Formats.Tar` mangles filenames in these archives.
 
-Still missing for a real release: the packages are not published anywhere, and `avatar_host` — the entry module that replaces `experiments/host.py` — does not exist yet.
+`setup.bat` does the same provisioning without the launcher: finds python 3.13+ or downloads the pinned standalone one, then `pip install`s every package from the repository subdirectories. `run.bat` starts an environment it already built. Both end at `avatar_host`, the installed entry module — `experiments/host.py` only exists in a checkout.
+
+Still missing for a real release: `avatar_project` is a private repository, so installing from it needs credentials, and the packages are not published anywhere.
 
 ## Data
 

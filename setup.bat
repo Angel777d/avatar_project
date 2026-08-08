@@ -8,6 +8,7 @@ set "BRANCH=master"
 set "APP_REPO=https://github.com/Angel777d/avatar_project.git"
 set "CORE_REPO=https://github.com/Angel777d/angelovich.core.git"
 set "FORCE="
+set "RUN="
 
 set "PY_URL=https://github.com/astral-sh/python-build-standalone/releases/download/20260805/cpython-3.13.14+20260805-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 set "PY_SHA=e0df6dea5aa2a7f6fab10ee187abcf1da554e1ebd0aafe4e404ff4a647f92081"
@@ -15,6 +16,7 @@ set "PY_SHA=e0df6dea5aa2a7f6fab10ee187abcf1da554e1ebd0aafe4e404ff4a647f92081"
 :args
 if "%~1"=="" goto args_done
 if /i "%~1"=="--force" set "FORCE=1" & shift & goto args
+if /i "%~1"=="--run" set "RUN=1" & shift & goto args
 if /i "%~1"=="--venv" set "VENV=%~2" & shift & shift & goto args
 if /i "%~1"=="--branch" set "BRANCH=%~2" & shift & shift & goto args
 if /i "%~1"=="--help" goto usage
@@ -54,6 +56,7 @@ echo installing the app and its plugins from github
     "avatar.api @ git+%APP_REPO%@%BRANCH%#subdirectory=api" ^
     "avatar.ui @ git+%APP_REPO%@%BRANCH%#subdirectory=ui" ^
     "avatar.core @ git+%APP_REPO%@%BRANCH%#subdirectory=core" ^
+    "avatar.host @ git+%APP_REPO%@%BRANCH%#subdirectory=host" ^
     "avatar_default @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/avatar" ^
     "avatar_kanban @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/kanban" ^
     "avatar_calendar @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/calendar" ^
@@ -64,6 +67,15 @@ echo done. installed:
 "%VPY%" -m pip list --format=freeze 2>nul | findstr /i /r "^avatar ^angelovich ^PySide6="
 echo(
 echo python: %VPY%
+
+if defined RUN (
+    echo(
+    echo starting the avatar
+    start "" "%VENV%\Scripts\pythonw.exe" -m avatar_host
+) else (
+    echo(
+    echo start it with:  run.bat
+)
 exit /b 0
 
 
@@ -122,9 +134,10 @@ exit /b 0
 
 :usage
 echo(
-echo usage: setup.bat [--force] [--venv PATH] [--branch NAME]
+echo usage: setup.bat [--force] [--run] [--venv PATH] [--branch NAME]
 echo(
 echo   --force        rebuild the environment from scratch
+echo   --run          start the avatar once it is installed
 echo   --venv PATH    where to put it ^(default .venv beside this script^)
 echo   --branch NAME  which branch to install from ^(default master^)
 exit /b 2
