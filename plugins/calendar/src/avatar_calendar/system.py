@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, time
 from typing import Optional
 
 from avatar_api import Entity, Env, System, events
@@ -9,6 +9,7 @@ from avatar_calendar.components import CalendarNoteEC
 from avatar_calendar.window import (
 	EVENT_ADD,
 	EVENT_DELETE,
+	EVENT_EDIT,
 	EVENT_OPEN,
 	PAGE,
 	CalendarBridge,
@@ -16,6 +17,15 @@ from avatar_calendar.window import (
 
 MENU_ITEM = "Open calendar"
 PAGE_TITLE = "Calendar"
+
+
+def parse_time(value: str) -> Optional[time]:
+	if not value:
+		return None
+	try:
+		return time.fromisoformat(value)
+	except ValueError:
+		return None
 
 
 class CalendarSystem(System):
@@ -31,6 +41,7 @@ class CalendarSystem(System):
 		self.add_listener(EVENT_OPEN, self.__on_open)
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_DELETE, self.__on_delete)
+		self.add_listener(EVENT_EDIT, self.__on_edit)
 		self.add_listener(events.ACTION_STORAGE_CHANGED, self.__on_storage_changed)
 
 		self.__bridge = CalendarBridge(self.env)
@@ -71,6 +82,27 @@ class CalendarSystem(System):
 		entity.add_component(NoteEC(title))
 		entity.add_component(DateEC(value))
 		entity.add_component(CalendarNoteEC())
+		self.__changed()
+
+	async def __on_edit(self, note_id: str, title: str, text: str, begin: str, end: str):
+		entity = self.__find(note_id)
+		if entity is None:
+			return
+		title = title.strip()
+		if not title:
+			return
+
+		note = entity.get_component(NoteEC)
+		note.title = title
+		note.text = text
+		note.touch()
+
+		entry = entity.get_component(CalendarNoteEC)
+		entry.begin = parse_time(begin)
+		entry.end = parse_time(end)
+		if entry.begin and entry.end and entry.end < entry.begin:
+			entry.begin, entry.end = entry.end, entry.begin
+
 		self.__changed()
 
 	async def __on_delete(self, note_id: str):

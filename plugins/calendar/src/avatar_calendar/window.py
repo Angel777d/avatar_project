@@ -1,6 +1,6 @@
 import calendar
 import json
-from datetime import date
+from datetime import date, time
 from pathlib import Path
 from typing import List, Optional
 
@@ -16,8 +16,23 @@ PAGE = Path(__file__).resolve().parent / "month.html"
 EVENT_OPEN = "request.calendar.open"
 EVENT_ADD = "request.calendar.add"
 EVENT_DELETE = "request.calendar.delete"
+EVENT_EDIT = "request.calendar.edit"
 
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def clock(value: Optional[time]) -> str:
+	return value.strftime("%H:%M") if value else ""
+
+
+def period(entry: CalendarNoteEC) -> str:
+	if entry.begin and entry.end:
+		return f"{clock(entry.begin)} – {clock(entry.end)}"
+	if entry.begin:
+		return clock(entry.begin)
+	if entry.end:
+		return f"until {clock(entry.end)}"
+	return ""
 
 
 def notes_by_day(data_storage: DataStorage) -> dict:
@@ -28,15 +43,20 @@ def notes_by_day(data_storage: DataStorage) -> dict:
 			continue
 		note = entity.get_component(NoteEC)
 		mine = entity.has_component(CalendarNoteEC)
+		entry = entity.get_component(CalendarNoteEC) if mine else None
+		span = period(entry) if entry else ""
 		grouped.setdefault(entity.get_component(DateEC).value.isoformat(), []).append({
 			"id": entity.get_component(StaticIdEC).static_id,
 			"title": note.title,
-			"detail": note.created.strftime("%H:%M") if mine else "due",
+			"text": note.text if mine else "",
+			"begin": clock(entry.begin) if entry else "",
+			"end": clock(entry.end) if entry else "",
+			"detail": (span or note.created.strftime("%H:%M")) if mine else "due",
 			"kind": "note" if mine else "deadline",
 		})
 
 	for items in grouped.values():
-		items.sort(key=lambda item: (item["kind"] != "note", item["title"]))
+		items.sort(key=lambda item: (item["kind"] != "note", item["begin"] or "99:99", item["title"]))
 	return grouped
 
 
@@ -96,3 +116,7 @@ class CalendarBridge(QObject):
 	@Slot(str)
 	def delete_note(self, note_id: str):
 		self.__env.event_bus.dispatch(EVENT_DELETE, note_id)
+
+	@Slot(str, str, str, str, str)
+	def edit_note(self, note_id: str, title: str, text: str, begin: str, end: str):
+		self.__env.event_bus.dispatch(EVENT_EDIT, note_id, title, text, begin, end)

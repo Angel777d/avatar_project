@@ -109,6 +109,17 @@
     align-items: flex-start;
   }
   #notes .title { flex: 1; line-height: 1.35; }
+  #notes li.editable { cursor: pointer; }
+  #notes li.editable:hover { border-color: var(--accent); }
+  #notes .note {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   #notes .detail { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
   #notes li.deadline { border-left: 3px solid #e0a458; }
   #notes li.deadline .detail { color: #e0a458; }
@@ -218,6 +229,20 @@ function renderMonth() {
   });
 }
 
+function openEditor(note) {
+  avatarEditor.open({
+    title: note.title,
+    text: note.text,
+    stamp: selected,
+    fields: [
+      {name: "begin", label: "From", type: "time", value: note.begin},
+      {name: "end", label: "To", type: "time", value: note.end},
+    ],
+    onSave: (result) => bridge.edit_note(
+      note.id, result.title, result.text, result.values.begin, result.values.end),
+  });
+}
+
 function renderPanel() {
   const title = document.getElementById("panel-title");
   const list = document.getElementById("notes");
@@ -249,6 +274,12 @@ function renderPanel() {
     const title = document.createElement("div");
     title.className = "title";
     title.textContent = note.title;
+    if (note.text) {
+      const body = document.createElement("span");
+      body.className = "note";
+      body.textContent = note.text;
+      title.appendChild(body);
+    }
     const stamp = document.createElement("span");
     stamp.className = "detail";
     stamp.textContent = note.detail;
@@ -256,10 +287,16 @@ function renderPanel() {
     item.appendChild(title);
 
     if (note.kind === "note") {
+      item.classList.add("editable");
+      item.addEventListener("click", () => openEditor(note));
+
       const kill = document.createElement("button");
       kill.className = "kill";
       kill.textContent = "×";
-      kill.addEventListener("click", () => bridge.delete_note(note.id));
+      kill.addEventListener("click", (event) => {
+        event.stopPropagation();
+        bridge.delete_note(note.id);
+      });
       item.appendChild(kill);
     }
 

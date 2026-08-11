@@ -142,52 +142,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  #editor[hidden] { display: none; }
-  #editor {
-    position: fixed;
-    inset: 0;
-    background: rgba(10, 12, 16, .6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-  #editor .sheet {
-    background: var(--panel);
-    border: 1px solid var(--panel-edge);
-    border-radius: 10px;
-    width: 460px;
-    max-width: 100%;
-    max-height: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 16px;
-  }
-  #editor input, #editor textarea {
-    background: var(--card);
-    border: 1px solid var(--card-edge);
-    color: var(--text);
-    border-radius: 6px;
-    padding: 8px 10px;
-    font: inherit;
-    outline: none;
-  }
-  #editor input:focus, #editor textarea:focus { border-color: var(--accent); }
-  #editor textarea { resize: vertical; min-height: 120px; line-height: 1.45; }
-  #editor .foot { display: flex; align-items: center; gap: 8px; }
-  #editor .foot span { color: var(--muted); font-size: 11px; }
-  #editor button {
-    background: transparent;
-    border: 1px solid var(--panel-edge);
-    color: var(--muted);
-    border-radius: 6px;
-    padding: 6px 14px;
-    font: inherit;
-    cursor: pointer;
-  }
-  #editor button:hover { color: var(--text); border-color: var(--accent); }
-  #editor-save { margin-left: auto; }
   .add { display: flex; padding: 0 10px 10px; }
   .add input {
     flex: 1;
@@ -210,47 +164,19 @@
 </header>
 <div id="board"></div>
 
-<div id="editor" hidden>
-  <div class="sheet">
-    <input id="editor-title" placeholder="Title">
-    <textarea id="editor-text" placeholder="Description…"></textarea>
-    <div class="foot">
-      <span id="editor-stamp"></span>
-      <button id="editor-cancel">Cancel</button>
-      <button id="editor-save">Save</button>
-    </div>
-  </div>
-</div>
-
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <script>
 let board = null;
 let dragged = null;
 let draggedColumn = null;
-let editing = null;
 
 function openEditor(card) {
-  editing = card.id;
-  document.getElementById("editor-title").value = card.title;
-  document.getElementById("editor-text").value = card.text || "";
-  document.getElementById("editor-stamp").textContent = card.created ? "created " + card.created : "";
-  document.getElementById("editor").hidden = false;
-  const title = document.getElementById("editor-title");
-  title.focus();
-  title.select();
-}
-
-function closeEditor() {
-  editing = null;
-  document.getElementById("editor").hidden = true;
-}
-
-function saveEditor() {
-  const title = document.getElementById("editor-title").value.trim();
-  if (editing && title) {
-    board.edit_card(editing, title, document.getElementById("editor-text").value);
-  }
-  closeEditor();
+  avatarEditor.open({
+    title: card.title,
+    text: card.text,
+    stamp: card.created ? "created " + card.created : "",
+    onSave: (result) => board.edit_card(card.id, result.title, result.text),
+  });
 }
 
 function cardNode(card) {
@@ -427,19 +353,6 @@ function refresh() {
   board.snapshot((payload) => render(JSON.parse(payload)));
 }
 
-function wireEditor() {
-  document.getElementById("editor-save").addEventListener("click", saveEditor);
-  document.getElementById("editor-cancel").addEventListener("click", closeEditor);
-  document.getElementById("editor").addEventListener("click", (event) => {
-    if (event.target.id === "editor") closeEditor();
-  });
-  document.addEventListener("keydown", (event) => {
-    if (!editing) return;
-    if (event.key === "Escape") closeEditor();
-    else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) saveEditor();
-  });
-}
-
 function wireHeader() {
   document.getElementById("reset").addEventListener("click", () => board.reset());
   document.getElementById("clear").addEventListener("click", () => {
@@ -451,7 +364,6 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
   board = channel.objects.board;
   board.changed.connect(refresh);
   wireHeader();
-  wireEditor();
   wireBoard();
   refresh();
 });

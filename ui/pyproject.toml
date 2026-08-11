@@ -20,3 +20,6 @@ license = "MIT"
 
 [tool.setuptools.packages.find]
 include = ["avatar_ui*"]
+
+[tool.setuptools.package-data]
+avatar_ui = ["assets/*"]

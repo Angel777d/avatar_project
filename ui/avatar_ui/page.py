@@ -1,11 +1,15 @@
 import asyncio
+import json
 from pathlib import Path
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional, Sequence, Union
 
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
+
+ASSETS = Path(__file__).resolve().parent / "assets"
+SHARED = (ASSETS / "editor.css", ASSETS / "editor.js")
 
 
 def await_signal(signal) -> asyncio.Future:
@@ -30,10 +34,12 @@ class HtmlPage(QWidget):
 	def __init__(self,
 	             page: Union[str, Path],
 	             objects: Optional[Mapping[str, QObject]] = None,
-	             parent: Optional[QWidget] = None):
+	             parent: Optional[QWidget] = None,
+	             assets: Sequence[Path] = SHARED):
 		super().__init__(parent)
 		self.__path = Path(page)
 		self.__objects = dict(objects or {})
+		self.__assets = tuple(assets)
 		self.__loaded = False
 		self.__loading: Optional[asyncio.Future] = None
 
@@ -69,7 +75,20 @@ class HtmlPage(QWidget):
 		ready = await_signal(view.loadFinished)
 		view.load(QUrl.fromLocalFile(str(self.__path)))
 		self.__loaded = await ready
+		if self.__loaded:
+			await self.__inject()
 		return self.__loaded
+
+	async def __inject(self) -> None:
+		for path in self.__assets:
+			source = path.read_text(encoding="utf-8")
+			if path.suffix == ".css":
+				source = (
+					"(() => { const style = document.createElement('style');"
+					f"style.textContent = {json.dumps(source)};"
+					"document.head.appendChild(style); })()"
+				)
+			await eval_js(self.build().page(), source)
 
 	def eval_js(self, script: str) -> asyncio.Future:
 		return eval_js(self.build().page(), script)
