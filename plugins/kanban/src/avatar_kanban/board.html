@@ -32,9 +32,19 @@
     border-bottom: 1px solid var(--panel-edge);
   }
   header h1 { font-size: 15px; font-weight: 600; margin: 0; }
-  #status { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  header button {
+  #fill {
     margin-left: auto;
+    width: 240px;
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font: inherit;
+    outline: none;
+  }
+  #fill:focus { border-color: var(--accent); }
+  header button {
     background: transparent;
     border: 1px solid var(--panel-edge);
     color: var(--muted);
@@ -43,6 +53,7 @@
     cursor: pointer;
   }
   header button:hover { color: var(--text); border-color: var(--accent); }
+  #clear:hover { color: #e2686d; border-color: #e2686d; }
   #board {
     flex: 1;
     display: flex;
@@ -150,8 +161,9 @@
 <body>
 <header>
   <h1>Kanban</h1>
-  <span id="status">state owned by core</span>
-  <button id="reset">Reset</button>
+  <input id="fill" placeholder="fill the backlog…">
+  <button id="reset" title="move everything that is not done back to the backlog">Reset</button>
+  <button id="clear" title="delete every card">Full reset</button>
 </header>
 <div id="board"></div>
 
@@ -160,10 +172,7 @@
 let board = null;
 let dragged = null;
 let draggedColumn = null;
-
-window.setStatus = (text) => {
-  document.getElementById("status").textContent = text;
-};
+let backlog = "";
 
 function cardNode(card) {
   const li = document.createElement("li");
@@ -306,6 +315,8 @@ function columnNode(column) {
 }
 
 function render(data) {
+  backlog = data.backlog;
+  document.getElementById("fill").disabled = !backlog;
   const root = document.getElementById("board");
   root.textContent = "";
   data.columns.forEach((column) => root.appendChild(columnNode(column)));
@@ -328,10 +339,24 @@ function refresh() {
   board.snapshot((payload) => render(JSON.parse(payload)));
 }
 
+function wireHeader() {
+  const fill = document.getElementById("fill");
+  fill.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && backlog && fill.value.trim()) {
+      board.add_card(backlog, fill.value);
+      fill.value = "";
+    }
+  });
+  document.getElementById("reset").addEventListener("click", () => board.reset());
+  document.getElementById("clear").addEventListener("click", () => {
+    if (confirm("Delete every card on the board?")) board.clear();
+  });
+}
+
 new QWebChannel(qt.webChannelTransport, (channel) => {
   board = channel.objects.board;
   board.changed.connect(refresh);
-  document.getElementById("reset").addEventListener("click", () => board.reset());
+  wireHeader();
   wireBoard();
   refresh();
 });

@@ -6,9 +6,16 @@ from datetime import date
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 
-from avatar_kanban.components import DEFAULT_COLUMNS, KanbanColumnEC, KanbanTaskEC
+from avatar_kanban.components import (
+	DEFAULT_COLUMNS,
+	ROLE_BACKLOG,
+	ROLE_DONE,
+	KanbanColumnEC,
+	KanbanTaskEC,
+)
 from avatar_kanban.window import (
 	EVENT_ADD,
+	EVENT_CLEAR,
 	EVENT_COLUMN_MOVE,
 	EVENT_COLUMN_RENAME,
 	EVENT_DEADLINE,
@@ -22,13 +29,6 @@ from avatar_kanban.window import (
 
 MENU_ITEM = "Open kanban"
 PAGE_TITLE = "Kanban"
-
-SEED = (
-	("todo", "Pick the UI layer"),
-	("todo", "Define plugin API"),
-	("doing", "HTML window PoC"),
-	("done", "Avatar PoC"),
-)
 
 
 class KanbanSystem(System):
@@ -50,6 +50,7 @@ class KanbanSystem(System):
 		self.add_listener(EVENT_DELETE, self.__on_delete)
 		self.add_listener(EVENT_DEADLINE, self.__on_deadline)
 		self.add_listener(EVENT_RESET, self.__on_reset)
+		self.add_listener(EVENT_CLEAR, self.__on_clear)
 		self.add_listener(EVENT_COLUMN_MOVE, self.__on_column_move)
 		self.add_listener(EVENT_COLUMN_RENAME, self.__on_column_rename)
 
@@ -65,17 +66,24 @@ class KanbanSystem(System):
 		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)
 
 	async def __on_restored(self, restored: int):
-		self.__seed_columns()
-		if not len(self.env.data_storage.get_collection(KanbanTaskEC)):
-			self.__seed()
+		self.__ensure_columns()
 
-	def __seed_columns(self):
-		if len(self.env.data_storage.get_collection(KanbanColumnEC)):
-			return
-		for position, (column_id, name) in enumerate(DEFAULT_COLUMNS):
-			entity = self.env.data_storage.create_entity()
-			entity.add_component(StaticIdEC(column_id))
-			entity.add_component(KanbanColumnEC(name, position))
+	def __ensure_columns(self):
+		known = {
+			entity.get_component(StaticIdEC).static_id: entity for entity in self.__columns()
+		}
+		position = len(known)
+		for column_id, name, role in DEFAULT_COLUMNS:
+			entity = known.get(column_id)
+			if entity is None:
+				entity = self.env.data_storage.create_entity()
+				entity.add_component(StaticIdEC(column_id))
+				entity.add_component(KanbanColumnEC(name, position, role))
+				position += 1
+				continue
+			column = entity.get_component(KanbanColumnEC)
+			if role and not column.role:
+				column.role = role
 
 	def __columns(self) -> List[Entity]:
 		entities = list(self.env.data_storage.get_collection(KanbanColumnEC))
@@ -106,10 +114,6 @@ class KanbanSystem(System):
 			return
 		entity.get_component(KanbanColumnEC).name = name
 		self.__changed()
-
-	def __seed(self):
-		for column_id, title in SEED:
-			self.__create(column_id, title)
 
 	def __create(self, column_id: str, title: str) -> Entity:
 		entity = self.env.data_storage.create_entity()
@@ -201,9 +205,29 @@ class KanbanSystem(System):
 		self.__changed()
 		self.__announce()
 
+	def __role(self, role: str) -> Optional[Entity]:
+		return next((entity for entity in self.__columns()
+		             if entity.get_component(KanbanColumnEC).role == role), None)
+
 	async def __on_reset(self):
+		backlog = self.__role(ROLE_BACKLOG)
+		if backlog is None:
+			return
+		done = self.__role(ROLE_DONE)
+		backlog_id = backlog.get_component(StaticIdEC).static_id
+		done_id = done.get_component(StaticIdEC).static_id if done is not None else ""
+
+		for entity in self.env.data_storage.get_collection(KanbanTaskEC):
+			task = entity.get_component(KanbanTaskEC)
+			if task.column != backlog_id and task.column != done_id:
+				task.column = backlog_id
+
+		for column_id in self.__column_ids():
+			self.__reindex(column_id)
+		self.__changed()
+
+	async def __on_clear(self):
 		for entity in self.env.data_storage.get_collection(KanbanTaskEC).entities:
 			self.env.data_storage.remove_entity(entity)
-		self.__seed()
 		self.__changed()
 		self.__announce()
