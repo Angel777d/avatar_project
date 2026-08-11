@@ -12,6 +12,7 @@ from avatar_api.env import Env
 from avatar_api.action import action_of, set_action, trigger
 from avatar_api.migrations import MigrationRegistry
 from avatar_api.registry import TypeRegistry
+from avatar_api.tags import apply_tags, catalogue, ensure_tag, tags_of
 
 __all__ = [
 	"DataStorage",
@@ -26,6 +27,10 @@ __all__ = [
 	"MigrationRegistry",
 	"TypeRegistry",
 	"action_of",
+	"apply_tags",
+	"catalogue",
+	"ensure_tag",
 	"set_action",
+	"tags_of",
 	"trigger",
 ]

@@ -16,6 +16,18 @@
 	text.className = "editor-text";
 	text.placeholder = "Description…";
 
+	const tagBox = document.createElement("div");
+	tagBox.className = "tags";
+	const chips = document.createElement("div");
+	chips.className = "chips";
+	const tagInput = document.createElement("input");
+	tagInput.className = "tag-input";
+	tagInput.placeholder = "add a tag…";
+	tagInput.setAttribute("list", "avatar-editor-tags");
+	const known = document.createElement("datalist");
+	known.id = "avatar-editor-tags";
+	tagBox.append(chips, tagInput, known);
+
 	const extra = document.createElement("div");
 	extra.className = "extra";
 
@@ -31,15 +43,50 @@
 	save.textContent = "Save";
 	foot.append(stamp, cancel, save);
 
-	sheet.append(title, text, extra, foot);
+	sheet.append(title, text, tagBox, extra, foot);
 	root.appendChild(sheet);
 
 	let current = null;
 	let fields = {};
+	let chosen = [];
+	let palette = [];
+
+	function renderChips() {
+		chips.textContent = "";
+		chosen.forEach((name) => {
+			const chip = document.createElement("span");
+			chip.className = "chip";
+			const tag = palette.find((item) => item.name === name);
+			if (tag && tag.color) {
+				chip.style.borderColor = tag.color;
+				chip.style.color = tag.color;
+			}
+			chip.textContent = name;
+
+			const drop = document.createElement("button");
+			drop.textContent = "×";
+			drop.addEventListener("click", () => {
+				chosen = chosen.filter((taken) => taken !== name);
+				renderChips();
+			});
+
+			chip.appendChild(drop);
+			chips.appendChild(chip);
+		});
+	}
+
+	function addTag(raw) {
+		const name = (raw || "").trim();
+		if (!name || chosen.includes(name)) return;
+		chosen.push(name);
+		renderChips();
+	}
 
 	function close() {
 		current = null;
 		fields = {};
+		chosen = [];
+		palette = [];
 		root.hidden = true;
 	}
 
@@ -51,8 +98,9 @@
 		const values = {};
 		Object.keys(fields).forEach((name) => { values[name] = fields[name].value; });
 		const body = text.value;
+		const tags = chosen.slice();
 		close();
-		if (value && done) done({title: value, text: body, values: values, was: named});
+		if (value && done) done({title: value, text: body, values: values, tags: tags, was: named});
 	}
 
 	function open(options) {
@@ -62,6 +110,18 @@
 		stamp.textContent = current.stamp || "";
 		extra.textContent = "";
 		fields = {};
+
+		tagBox.hidden = !current.tags;
+		chosen = current.tags ? (current.tags.selected || []).slice() : [];
+		palette = current.tags ? (current.tags.all || []) : [];
+		known.textContent = "";
+		palette.forEach((tag) => {
+			const option = document.createElement("option");
+			option.value = tag.name;
+			known.appendChild(option);
+		});
+		tagInput.value = "";
+		renderChips();
 
 		(current.fields || []).forEach((field) => {
 			const label = document.createElement("label");
@@ -79,6 +139,13 @@
 		title.focus();
 		title.select();
 	}
+
+	tagInput.addEventListener("keydown", (event) => {
+		if (event.key !== "Enter") return;
+		event.preventDefault();
+		addTag(tagInput.value);
+		tagInput.value = "";
+	});
 
 	save.addEventListener("click", commit);
 	cancel.addEventListener("click", close);
@@ -99,6 +166,8 @@
 		open: open,
 		close: close,
 		isOpen: () => !root.hidden,
+		addTag: addTag,
+		tags: () => chosen.slice(),
 		element: root,
 	};
 })();

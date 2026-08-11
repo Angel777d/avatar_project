@@ -123,6 +123,14 @@
   }
   .card .due:hover, .card .due:focus { border-color: var(--card-edge); outline: none; }
   .card .due.set { color: #e0a458; }
+  .tagstrip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .tag {
+    border: 1px solid var(--card-edge);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+  }
   .card .kill {
     background: none;
     border: none;
@@ -169,14 +177,33 @@
 let board = null;
 let dragged = null;
 let draggedColumn = null;
+let latest = {columns: [], tags: []};
 
 function openEditor(card) {
   avatarEditor.open({
     title: card.title,
     text: card.text,
     stamp: card.created ? "created " + card.created : "",
-    onSave: (result) => board.edit_card(card.id, result.title, result.text),
+    tags: {selected: (card.tags || []).map((tag) => tag.name), all: latest.tags},
+    onSave: (result) => board.edit_card(
+      card.id, result.title, result.text, JSON.stringify(result.tags)),
   });
+}
+
+function tagStrip(tags) {
+  const strip = document.createElement("div");
+  strip.className = "tagstrip";
+  tags.forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "tag";
+    chip.textContent = tag.name;
+    if (tag.color) {
+      chip.style.borderColor = tag.color;
+      chip.style.color = tag.color;
+    }
+    strip.appendChild(chip);
+  });
+  return strip;
 }
 
 function cardNode(card) {
@@ -194,6 +221,7 @@ function cardNode(card) {
     note.textContent = card.text;
     title.appendChild(note);
   }
+  if (card.tags && card.tags.length) title.appendChild(tagStrip(card.tags));
   if (card.created) {
     const stamp = document.createElement("span");
     stamp.className = "created";
@@ -331,6 +359,7 @@ function columnNode(column) {
 }
 
 function render(data) {
+  latest = data;
   const root = document.getElementById("board");
   root.textContent = "";
   data.columns.forEach((column) => root.appendChild(columnNode(column)));

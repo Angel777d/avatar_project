@@ -39,6 +39,28 @@ class TagEC(EntityComponent):
 		self.tags: Set[str] = set(tags)
 
 
+class TagNameEC(EntityHashComponent):
+	def __init__(self, name: str = ""):
+		super().__init__()
+		self.name: str = name
+
+	@staticmethod
+	def make_hash(name: str) -> Hashable:
+		return name
+
+	def __hash__(self):
+		return hash(self.name)
+
+	def __repr__(self):
+		return f"TagNameEC({self.name})"
+
+
+class ColorEC(EntityComponent):
+	def __init__(self, value: str = ""):
+		super().__init__()
+		self.value: str = value
+
+
 class DateEC(EntityComponent):
 	def __init__(self, value: Optional[date] = None):
 		super().__init__()

@@ -5,6 +5,7 @@ from datetime import date
 
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
+from avatar_api.tags import apply_tags, names_from
 
 from avatar_kanban.components import (
 	DEFAULT_COLUMNS,
@@ -184,7 +185,7 @@ class KanbanSystem(System):
 		if dated:
 			self.__announce()
 
-	async def __on_edit(self, card_id: str, title: str, text: str):
+	async def __on_edit(self, card_id: str, title: str, text: str, tags: str = ""):
 		entity = self.__find(card_id)
 		if entity is None or not entity.has_component(NoteEC):
 			return
@@ -195,6 +196,7 @@ class KanbanSystem(System):
 		note.title = title
 		note.text = text
 		note.touch()
+		apply_tags(self.env.data_storage, entity, names_from(tags))
 		self.__changed()
 		if entity.has_component(DateEC):
 			self.__announce()

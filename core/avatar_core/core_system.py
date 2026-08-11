@@ -1,17 +1,20 @@
 from avatar_api import Env, System, events
 from avatar_api.components import (
+	ColorEC,
 	DateEC,
 	DurationEC,
 	NoteEC,
 	NotificationEC,
 	StaticIdEC,
 	TagEC,
+	TagNameEC,
 )
 from avatar_api.menu import add_menu_item
 
 CLOSE_ITEM = "Close"
 
-STORED_TYPES = (StaticIdEC, NoteEC, TagEC, DateEC, DurationEC, NotificationEC)
+STORED_TYPES = (
+	StaticIdEC, NoteEC, TagEC, TagNameEC, ColorEC, DateEC, DurationEC, NotificationEC)
 
 
 class CoreSystem(System):

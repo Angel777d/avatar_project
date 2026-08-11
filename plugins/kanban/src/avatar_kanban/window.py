@@ -5,6 +5,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from avatar_api import DataStorage
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
+from avatar_api.tags import catalogue, tags_of
 
 from avatar_kanban.components import KanbanColumnEC, KanbanTaskEC
 
@@ -51,6 +52,7 @@ def build_snapshot(data_storage: DataStorage) -> dict:
 				"id": entity.get_component(StaticIdEC).static_id,
 				"title": note.title,
 				"text": note.text,
+				"tags": tags_of(data_storage, entity),
 				"created": note.created.strftime("%Y-%m-%d %H:%M"),
 				"deadline": deadline.isoformat() if deadline else "",
 			})
@@ -60,7 +62,7 @@ def build_snapshot(data_storage: DataStorage) -> dict:
 			"role": column.role,
 			"cards": cards,
 		})
-	return {"columns": columns}
+	return {"columns": columns, "tags": catalogue(data_storage)}
 
 
 class Board(QObject):
@@ -86,9 +88,9 @@ class Board(QObject):
 	def set_deadline(self, card_id: str, day: str):
 		self.__env.event_bus.dispatch(EVENT_DEADLINE, card_id, day)
 
-	@Slot(str, str, str)
-	def edit_card(self, card_id: str, title: str, text: str):
-		self.__env.event_bus.dispatch(EVENT_EDIT, card_id, title, text)
+	@Slot(str, str, str, str)
+	def edit_card(self, card_id: str, title: str, text: str, tags: str):
+		self.__env.event_bus.dispatch(EVENT_EDIT, card_id, title, text, tags)
 
 	@Slot(str)
 	def delete_card(self, card_id: str):

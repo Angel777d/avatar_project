@@ -4,6 +4,7 @@ from typing import Optional
 from avatar_api import Entity, Env, System, events
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
+from avatar_api.tags import apply_tags, names_from
 
 from avatar_calendar.components import CalendarNoteEC
 from avatar_calendar.window import (
@@ -84,7 +85,8 @@ class CalendarSystem(System):
 		entity.add_component(CalendarNoteEC())
 		self.__changed()
 
-	async def __on_edit(self, note_id: str, title: str, text: str, begin: str, end: str):
+	async def __on_edit(self, note_id: str, title: str, text: str,
+	                    begin: str, end: str, tags: str = ""):
 		entity = self.__find(note_id)
 		if entity is None:
 			return
@@ -92,6 +94,7 @@ class CalendarSystem(System):
 		if not title:
 			return
 
+		apply_tags(self.env.data_storage, entity, names_from(tags))
 		note = entity.get_component(NoteEC)
 		note.title = title
 		note.text = text

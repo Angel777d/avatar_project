@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from avatar_api import DataStorage
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
+from avatar_api.tags import catalogue, tags_of
 
 from avatar_calendar.components import CalendarNoteEC
 
@@ -49,6 +50,7 @@ def notes_by_day(data_storage: DataStorage) -> dict:
 			"id": entity.get_component(StaticIdEC).static_id,
 			"title": note.title,
 			"text": note.text if mine else "",
+			"tags": tags_of(data_storage, entity),
 			"begin": clock(entry.begin) if entry else "",
 			"end": clock(entry.end) if entry else "",
 			"detail": (span or note.created.strftime("%H:%M")) if mine else "due",
@@ -90,6 +92,7 @@ def build_snapshot(data_storage: DataStorage,
 		"today": today.isoformat(),
 		"focus": focus.replace(day=1).isoformat(),
 		"notes": notes_by_day(data_storage),
+		"tags": catalogue(data_storage),
 	}
 
 
@@ -117,6 +120,6 @@ class CalendarBridge(QObject):
 	def delete_note(self, note_id: str):
 		self.__env.event_bus.dispatch(EVENT_DELETE, note_id)
 
-	@Slot(str, str, str, str, str)
-	def edit_note(self, note_id: str, title: str, text: str, begin: str, end: str):
-		self.__env.event_bus.dispatch(EVENT_EDIT, note_id, title, text, begin, end)
+	@Slot(str, str, str, str, str, str)
+	def edit_note(self, note_id: str, title: str, text: str, begin: str, end: str, tags: str):
+		self.__env.event_bus.dispatch(EVENT_EDIT, note_id, title, text, begin, end, tags)

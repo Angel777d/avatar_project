@@ -121,6 +121,14 @@
     white-space: nowrap;
   }
   #notes .detail { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+  .tagstrip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .tag {
+    border: 1px solid var(--card-edge);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+  }
   #notes li.deadline { border-left: 3px solid #e0a458; }
   #notes li.deadline .detail { color: #e0a458; }
   #notes .kill {
@@ -234,13 +242,31 @@ function openEditor(note) {
     title: note.title,
     text: note.text,
     stamp: selected,
+    tags: {selected: (note.tags || []).map((tag) => tag.name), all: latest.tags},
     fields: [
       {name: "begin", label: "From", type: "time", value: note.begin},
       {name: "end", label: "To", type: "time", value: note.end},
     ],
     onSave: (result) => bridge.edit_note(
-      note.id, result.title, result.text, result.values.begin, result.values.end),
+      note.id, result.title, result.text,
+      result.values.begin, result.values.end, JSON.stringify(result.tags)),
   });
+}
+
+function tagStrip(tags) {
+  const strip = document.createElement("div");
+  strip.className = "tagstrip";
+  tags.forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "tag";
+    chip.textContent = tag.name;
+    if (tag.color) {
+      chip.style.borderColor = tag.color;
+      chip.style.color = tag.color;
+    }
+    strip.appendChild(chip);
+  });
+  return strip;
 }
 
 function renderPanel() {
@@ -280,6 +306,7 @@ function renderPanel() {
       body.textContent = note.text;
       title.appendChild(body);
     }
+    if (note.tags && note.tags.length) title.appendChild(tagStrip(note.tags));
     const stamp = document.createElement("span");
     stamp.className = "detail";
     stamp.textContent = note.detail;
