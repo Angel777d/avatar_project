@@ -10,7 +10,9 @@ EVENT_START = "request.pomodoro.start"
 EVENT_PAUSE = "request.pomodoro.pause"
 EVENT_RESET = "request.pomodoro.reset"
 EVENT_SKIP = "request.pomodoro.skip"
-EVENT_SETTINGS = "request.pomodoro.settings"
+EVENT_SELECT = "request.pomodoro.select"
+EVENT_PRESET_SAVE = "request.pomodoro.preset.save"
+EVENT_PRESET_DELETE = "request.pomodoro.preset.delete"
 
 ACTION_PHASE_CHANGED = "action.pomodoro.phase"
 
@@ -43,8 +45,17 @@ class PomodoroBridge(QObject):
 	def skip(self):
 		self.__env.event_bus.dispatch(EVENT_SKIP)
 
-	@Slot(int, int, int, int, int)
-	def save_settings(self, work: int, short_break: int, long_break: int,
-	                  long_break_every: int, sequences: int):
+	@Slot(str)
+	def select_preset(self, preset_id: str):
+		self.__env.event_bus.dispatch(EVENT_SELECT, preset_id)
+
+	@Slot(str)
+	def delete_preset(self, preset_id: str):
+		self.__env.event_bus.dispatch(EVENT_PRESET_DELETE, preset_id)
+
+	@Slot(str, str, int, int, int, int, int)
+	def save_preset(self, preset_id: str, name: str, work: int, short_break: int,
+	                long_break: int, long_break_every: int, sequences: int):
 		self.__env.event_bus.dispatch(
-			EVENT_SETTINGS, work, short_break, long_break, long_break_every, sequences)
+			EVENT_PRESET_SAVE, preset_id, name, work, short_break,
+			long_break, long_break_every, sequences)

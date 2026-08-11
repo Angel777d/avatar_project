@@ -105,6 +105,20 @@
     outline: none;
   }
   #settings input:focus { border-color: var(--accent); }
+  #settings select {
+    width: 96px;
+    background: var(--bg);
+    border: 1px solid var(--panel-edge);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 3px 4px;
+    font: inherit;
+    outline: none;
+  }
+  #settings select:focus { border-color: var(--accent); }
+  #preset-row { display: flex; gap: 6px; margin-top: 6px; }
+  #preset-row button { flex: 1; }
+  #p-del:hover:not(:disabled) { border-color: #e2686d; color: #e2686d; }
   #save { width: 100%; margin-top: 4px; }
 </style>
 </head>
@@ -126,11 +140,17 @@
   </div>
   <div id="done">0 done today</div>
   <div id="settings">
+    <label>Preset <select id="s-preset"></select></label>
+    <label>Name <input id="s-name" type="text" maxlength="40"></label>
     <label>Focus, minutes <input id="s-work" type="number" min="1" max="180"></label>
     <label>Short break <input id="s-short" type="number" min="1" max="180"></label>
     <label>Long break <input id="s-long" type="number" min="1" max="180"></label>
     <label>Long break every <input id="s-every" type="number" min="1" max="12"></label>
     <label>Sequences in a row <input id="s-seq" type="number" min="1" max="24"></label>
+    <div id="preset-row">
+      <button id="p-new">New</button>
+      <button id="p-del">Delete</button>
+    </div>
     <button id="save">Save</button>
   </div>
 
@@ -149,8 +169,23 @@ function minutes(seconds) {
   return Math.max(1, Math.round(seconds / 60));
 }
 
+function renderPresets(data) {
+  const list = document.getElementById("s-preset");
+  if (document.activeElement === list) return;
+  list.textContent = "";
+  data.presets.forEach((preset) => {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.name;
+    if (preset.id === data.selected) option.selected = true;
+    list.appendChild(option);
+  });
+  document.getElementById("p-del").disabled = data.presets.length < 2;
+}
+
 function renderSettings(settings) {
   if (document.activeElement && document.activeElement.tagName === "INPUT") return;
+  document.getElementById("s-name").value = settings.name;
   document.getElementById("s-work").value = minutes(settings.work);
   document.getElementById("s-short").value = minutes(settings.short_break);
   document.getElementById("s-long").value = minutes(settings.long_break);
@@ -172,11 +207,13 @@ function render(data) {
   document.getElementById("start").disabled = data.running;
   document.getElementById("pause").disabled = !data.running;
   document.getElementById("skip").disabled = data.phase === "idle";
-  const parts = [`${data.done_today} done today`];
+  const parts = [data.preset, `${data.done_today} done today`];
   if (data.streak) parts.push(`${data.streak} in a row`);
   if (data.sequences > 1 && data.phase !== "idle")
     parts.push(`set ${data.sequence + 1} of ${data.sequences}`);
+  if (data.next && data.next !== data.preset) parts.push(`next: ${data.next}`);
   document.getElementById("done").textContent = parts.join(" · ");
+  renderPresets(data);
   renderSettings(data.settings);
 }
 
@@ -193,10 +230,18 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
   document.getElementById("reset").addEventListener("click", () => bridge.reset());
   document.getElementById("cog").addEventListener("click", () =>
     document.body.classList.toggle("settings-open"));
+  document.getElementById("s-preset").addEventListener("change", (event) =>
+    bridge.select_preset(event.target.value));
+  document.getElementById("p-new").addEventListener("click", () =>
+    bridge.save_preset("", "New preset", 0, 0, 0, 0, 0));
+  document.getElementById("p-del").addEventListener("click", () =>
+    bridge.delete_preset(document.getElementById("s-preset").value));
   document.getElementById("save").addEventListener("click", () => {
     const read = (id) => parseInt(document.getElementById(id).value, 10) || 0;
-    bridge.save_settings(read("s-work") * 60, read("s-short") * 60,
-                         read("s-long") * 60, read("s-every"), read("s-seq"));
+    bridge.save_preset(document.getElementById("s-preset").value,
+                       document.getElementById("s-name").value,
+                       read("s-work") * 60, read("s-short") * 60,
+                       read("s-long") * 60, read("s-every"), read("s-seq"));
     document.body.classList.remove("settings-open");
   });
   refresh();

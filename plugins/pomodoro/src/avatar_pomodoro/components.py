@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 from avatar_api import EntityComponent
 
+DEFAULT_NAME = "Classic"
 DEFAULT_WORK_S = 25 * 60
 DEFAULT_SHORT_BREAK_S = 5 * 60
 DEFAULT_LONG_BREAK_S = 15 * 60
@@ -34,14 +35,22 @@ class PomodoroLogEC(EntityComponent):
 		return sum(self.days.values())
 
 
+class PomodoroChoiceEC(EntityComponent):
+	def __init__(self, preset: str = ""):
+		super().__init__()
+		self.preset: str = preset
+
+
 class PomodoroSettingsEC(EntityComponent):
 	def __init__(self,
+	             name: str = DEFAULT_NAME,
 	             work: float = DEFAULT_WORK_S,
 	             short_break: float = DEFAULT_SHORT_BREAK_S,
 	             long_break: float = DEFAULT_LONG_BREAK_S,
 	             long_break_every: int = DEFAULT_LONG_BREAK_EVERY,
 	             sequences: int = DEFAULT_SEQUENCES):
 		super().__init__()
+		self.name: str = name
 		self.work: float = work
 		self.short_break: float = short_break
 		self.long_break: float = long_break
