@@ -6,7 +6,6 @@ from datetime import date
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 
-from avatar_kanban import migrations
 from avatar_kanban.components import DEFAULT_COLUMNS, KanbanColumnEC, KanbanTaskEC
 from avatar_kanban.window import (
 	EVENT_ADD,
@@ -40,7 +39,6 @@ class KanbanSystem(System):
 	async def start(self):
 		self.env.registry.register(KanbanTaskEC, "kanban_task")
 		self.env.registry.register(KanbanColumnEC, "kanban_column")
-		migrations.register(self.env.migrations)
 
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 

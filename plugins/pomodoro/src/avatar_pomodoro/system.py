@@ -2,17 +2,9 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from avatar_api import Env, System, events
-from avatar_api.components import (
-	DateEC,
-	DurationEC,
-	NoteEC,
-	NotificationEC,
-	StaticIdEC,
-	TimerEC,
-)
+from avatar_api.components import NotificationEC, StaticIdEC, TimerEC
 from avatar_api.menu import add_menu_item
 
-from avatar_pomodoro import migrations
 from avatar_pomodoro.components import PomodoroLogEC, PomodoroSettingsEC
 from avatar_pomodoro.window import (
 	ACTION_PHASE_CHANGED,
@@ -58,7 +50,6 @@ class PomodoroSystem(System):
 	async def start(self):
 		self.env.registry.register(PomodoroSettingsEC, "pomodoro_settings")
 		self.env.registry.register(PomodoroLogEC, "pomodoro_log")
-		migrations.register(self.env.migrations)
 
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 

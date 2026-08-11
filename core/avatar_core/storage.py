@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 APP_FOLDER = "avatar_project"
 DB_NAME = "avatar.db"
 
-PREFIX = "c_"
-LEGACY_TABLE = "core_entities"
 SCHEMA_TABLE = "core_schema"
 
 
@@ -41,7 +39,6 @@ class Storage:
 			await asyncio.to_thread(self.__close)
 
 	async def load(self, env: Env) -> int:
-		await asyncio.to_thread(self.__migrate_legacy)
 		await asyncio.to_thread(self.__migrate, env.migrations)
 
 		names = self.__registered(env)
@@ -207,34 +204,3 @@ class Storage:
 					step(connection)
 					self.__set_version(name, step_version)
 					version = step_version
-
-	def __migrate_legacy(self) -> None:
-		present = self.__connection.execute(
-			"select name from sqlite_master where type = 'table' and name = ?", (LEGACY_TABLE,)
-		).fetchone()
-		if not present:
-			return
-
-		moved = 0
-		with self.__connection as connection:
-			for static_id, raw in connection.execute(
-					f"select static_id, data from {LEGACY_TABLE}").fetchall():
-				try:
-					payloads = json.loads(raw)
-				except json.JSONDecodeError:
-					logger.error("entity %s is not readable, dropped by the split", static_id)
-					continue
-				for payload in payloads:
-					name = payload.get(NAME_FIELD)
-					if not name or name == StaticIdEC.__name__:
-						continue
-					table = table_of(name)
-					self.__ensure(table)
-					connection.execute(
-						f'insert into "{table}" (static_id, data) values (?, ?) '
-						f"on conflict(static_id) do update set data = excluded.data",
-						(static_id, json.dumps(payload)),
-					)
-					moved += 1
-			connection.execute(f"drop table {LEGACY_TABLE}")
-		logger.info("split %d stored components out of %s", moved, LEGACY_TABLE)
