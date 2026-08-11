@@ -31,8 +31,21 @@
     padding: 14px 18px;
     border-bottom: 1px solid var(--panel-edge);
   }
-  header h1 { font-size: 15px; font-weight: 600; margin: 0; }
-  header .hint { color: var(--muted); font-size: 12px; }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; min-width: 150px; }
+  header .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+  header .nav { display: flex; gap: 6px; }
+  header button {
+    background: transparent;
+    border: 1px solid var(--panel-edge);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 3px 11px;
+    font: inherit;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  header button:hover { color: var(--text); border-color: var(--accent); }
+  header button[hidden] { display: none; }
   main { flex: 1; display: flex; gap: 16px; padding: 16px 18px; min-height: 0; }
 
   #month { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -127,6 +140,11 @@
 <body>
 <header>
   <h1 id="title">Calendar</h1>
+  <div class="nav">
+    <button id="prev" title="previous month">‹</button>
+    <button id="next" title="next month">›</button>
+    <button id="today" title="back to this month" hidden>Today</button>
+  </div>
   <span class="hint">pick a day, then type to add a note</span>
 </header>
 <main>
@@ -145,6 +163,7 @@
 let bridge = null;
 let selected = null;
 let latest = null;
+let offset = 0;
 
 function dayCell(cell) {
   const box = document.createElement("div");
@@ -256,20 +275,34 @@ function select(day) {
 }
 
 function render(data) {
+  const first = !latest;
   latest = data;
   document.getElementById("title").textContent = data.title;
-  if (!selected) selected = data.today;
+  document.getElementById("today").hidden = offset === 0;
+
+  if (first) selected = data.today;
+  else if (selected && selected.slice(0, 7) !== data.focus.slice(0, 7)) selected = null;
+
   renderMonth();
   renderPanel();
 }
 
 function refresh() {
-  bridge.snapshot((payload) => render(JSON.parse(payload)));
+  bridge.snapshot_at(offset, (payload) => render(JSON.parse(payload)));
+}
+
+function step(by) {
+  offset = by === 0 ? 0 : offset + by;
+  refresh();
 }
 
 new QWebChannel(qt.webChannelTransport, (channel) => {
   bridge = channel.objects.calendar;
   bridge.changed.connect(refresh);
+
+  document.getElementById("prev").addEventListener("click", () => step(-1));
+  document.getElementById("next").addEventListener("click", () => step(1));
+  document.getElementById("today").addEventListener("click", () => step(0));
 
   const input = document.getElementById("new-note");
   input.addEventListener("keydown", (event) => {

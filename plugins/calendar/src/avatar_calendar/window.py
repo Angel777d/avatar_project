@@ -40,23 +40,35 @@ def notes_by_day(data_storage: DataStorage) -> dict:
 	return grouped
 
 
-def build_snapshot(data_storage: DataStorage, today: Optional[date] = None) -> dict:
+def shift_month(day: date, offset: int) -> date:
+	index = day.year * 12 + day.month - 1 + offset
+	year, month = divmod(index, 12)
+	if not date.min.year <= year <= date.max.year:
+		return day.replace(day=1)
+	return date(year, month + 1, 1)
+
+
+def build_snapshot(data_storage: DataStorage,
+                   focus: Optional[date] = None,
+                   today: Optional[date] = None) -> dict:
 	today = today or date.today()
+	focus = focus or today
 	weeks: List[List[Optional[dict]]] = []
-	for week in calendar.Calendar().monthdatescalendar(today.year, today.month):
+	for week in calendar.Calendar().monthdatescalendar(focus.year, focus.month):
 		cells = []
 		for day in week:
-			if day.month != today.month:
+			if day.month != focus.month:
 				cells.append(None)
 			else:
 				cells.append({"date": day.isoformat(), "day": day.day, "today": day == today})
 		weeks.append(cells)
 
 	return {
-		"title": f"{calendar.month_name[today.month]} {today.year}",
+		"title": f"{calendar.month_name[focus.month]} {focus.year}",
 		"weekdays": list(WEEKDAYS),
 		"weeks": weeks,
 		"today": today.isoformat(),
+		"focus": focus.replace(day=1).isoformat(),
 		"notes": notes_by_day(data_storage),
 	}
 
@@ -70,7 +82,12 @@ class CalendarBridge(QObject):
 
 	@Slot(result=str)
 	def snapshot(self) -> str:
-		return json.dumps(build_snapshot(self.__env.data_storage))
+		return self.snapshot_at(0)
+
+	@Slot(int, result=str)
+	def snapshot_at(self, offset: int) -> str:
+		focus = shift_month(date.today(), offset)
+		return json.dumps(build_snapshot(self.__env.data_storage, focus))
 
 	@Slot(str, str)
 	def add_note(self, day: str, title: str):
