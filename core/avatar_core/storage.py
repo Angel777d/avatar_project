@@ -3,6 +3,8 @@ import json
 import logging
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
@@ -30,19 +32,29 @@ class Storage:
 		self.__connection: Optional[sqlite3.Connection] = None
 		self.__known: Set[str] = set()
 		self.__protected: Dict[str, Set[str]] = {}
+		self.__thread: Optional[ThreadPoolExecutor] = None
+
+	async def __on_thread(self, work, *args):
+		loop = asyncio.get_running_loop()
+		return await loop.run_in_executor(self.__thread, partial(work, *args))
 
 	async def open(self) -> None:
-		await asyncio.to_thread(self.__open)
+		# a sqlite connection belongs to the thread that opened it, so every call gets that one
+		self.__thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="avatar-storage")
+		await self.__on_thread(self.__open)
 
 	async def close(self) -> None:
 		if self.__connection is not None:
-			await asyncio.to_thread(self.__close)
+			await self.__on_thread(self.__close)
+		if self.__thread is not None:
+			self.__thread.shutdown(wait=True)
+			self.__thread = None
 
 	async def load(self, env: Env) -> int:
-		await asyncio.to_thread(self.__migrate, env.migrations)
+		await self.__on_thread(self.__migrate, env.migrations)
 
 		names = self.__registered(env)
-		rows = await asyncio.to_thread(self.__read, names)
+		rows = await self.__on_thread(self.__read, names)
 
 		self.__protected.clear()
 		components: Dict[str, list] = {}
@@ -78,7 +90,7 @@ class Storage:
 				live.setdefault(name, []).append((static_id, json.dumps(payload)))
 
 		removed = self.__known - live_ids
-		await asyncio.to_thread(self.__write, live, self.__registered(env), removed)
+		await self.__on_thread(self.__write, live, self.__registered(env), removed)
 		self.__known = live_ids
 		return len(live_ids)
 
