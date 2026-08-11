@@ -20,6 +20,7 @@ from avatar_kanban.window import (
 	EVENT_COLUMN_RENAME,
 	EVENT_DEADLINE,
 	EVENT_DELETE,
+	EVENT_EDIT,
 	EVENT_MOVE,
 	EVENT_OPEN,
 	EVENT_RESET,
@@ -29,6 +30,7 @@ from avatar_kanban.window import (
 
 MENU_ITEM = "Open kanban"
 PAGE_TITLE = "Kanban"
+FIRST_CARD = "fill backlog"
 
 
 class KanbanSystem(System):
@@ -49,6 +51,7 @@ class KanbanSystem(System):
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_DELETE, self.__on_delete)
 		self.add_listener(EVENT_DEADLINE, self.__on_deadline)
+		self.add_listener(EVENT_EDIT, self.__on_edit)
 		self.add_listener(EVENT_RESET, self.__on_reset)
 		self.add_listener(EVENT_CLEAR, self.__on_clear)
 		self.add_listener(EVENT_COLUMN_MOVE, self.__on_column_move)
@@ -181,6 +184,21 @@ class KanbanSystem(System):
 		if dated:
 			self.__announce()
 
+	async def __on_edit(self, card_id: str, title: str, text: str):
+		entity = self.__find(card_id)
+		if entity is None or not entity.has_component(NoteEC):
+			return
+		title = title.strip()
+		if not title:
+			return
+		note = entity.get_component(NoteEC)
+		note.title = title
+		note.text = text
+		note.touch()
+		self.__changed()
+		if entity.has_component(DateEC):
+			self.__announce()
+
 	async def __on_deadline(self, card_id: str, day: str):
 		entity = self.__find(card_id)
 		if entity is None or not entity.has_component(KanbanTaskEC):
@@ -229,5 +247,8 @@ class KanbanSystem(System):
 	async def __on_clear(self):
 		for entity in self.env.data_storage.get_collection(KanbanTaskEC).entities:
 			self.env.data_storage.remove_entity(entity)
+		backlog = self.__role(ROLE_BACKLOG)
+		if backlog is not None:
+			self.__create(backlog.get_component(StaticIdEC).static_id, FIRST_CARD)
 		self.__changed()
 		self.__announce()

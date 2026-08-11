@@ -6,7 +6,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 from avatar_api import DataStorage
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 
-from avatar_kanban.components import ROLE_BACKLOG, KanbanColumnEC, KanbanTaskEC
+from avatar_kanban.components import KanbanColumnEC, KanbanTaskEC
 
 PAGE = Path(__file__).resolve().parent / "board.html"
 
@@ -15,6 +15,7 @@ EVENT_MOVE = "request.kanban.move"
 EVENT_ADD = "request.kanban.add"
 EVENT_DELETE = "request.kanban.delete"
 EVENT_DEADLINE = "request.kanban.deadline"
+EVENT_EDIT = "request.kanban.edit"
 EVENT_COLUMN_MOVE = "request.kanban.column.move"
 EVENT_COLUMN_RENAME = "request.kanban.column.rename"
 EVENT_RESET = "request.kanban.reset"
@@ -39,8 +40,6 @@ def build_snapshot(data_storage: DataStorage) -> dict:
 		if column in buckets:
 			buckets[column].append(entity)
 
-	backlog = next((column_id for column_id, column in order if column.role == ROLE_BACKLOG), "")
-
 	columns = []
 	for column_id, column in order:
 		entities = sorted(buckets[column_id], key=lambda e: e.get_component(KanbanTaskEC).position)
@@ -51,6 +50,7 @@ def build_snapshot(data_storage: DataStorage) -> dict:
 			cards.append({
 				"id": entity.get_component(StaticIdEC).static_id,
 				"title": note.title,
+				"text": note.text,
 				"created": note.created.strftime("%Y-%m-%d %H:%M"),
 				"deadline": deadline.isoformat() if deadline else "",
 			})
@@ -60,7 +60,7 @@ def build_snapshot(data_storage: DataStorage) -> dict:
 			"role": column.role,
 			"cards": cards,
 		})
-	return {"columns": columns, "backlog": backlog}
+	return {"columns": columns}
 
 
 class Board(QObject):
@@ -85,6 +85,10 @@ class Board(QObject):
 	@Slot(str, str)
 	def set_deadline(self, card_id: str, day: str):
 		self.__env.event_bus.dispatch(EVENT_DEADLINE, card_id, day)
+
+	@Slot(str, str, str)
+	def edit_card(self, card_id: str, title: str, text: str):
+		self.__env.event_bus.dispatch(EVENT_EDIT, card_id, title, text)
 
 	@Slot(str)
 	def delete_card(self, card_id: str):

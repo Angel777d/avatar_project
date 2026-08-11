@@ -32,18 +32,6 @@
     border-bottom: 1px solid var(--panel-edge);
   }
   header h1 { font-size: 15px; font-weight: 600; margin: 0; }
-  #fill {
-    margin-left: auto;
-    width: 240px;
-    background: var(--card);
-    border: 1px solid var(--card-edge);
-    color: var(--text);
-    border-radius: 6px;
-    padding: 6px 10px;
-    font: inherit;
-    outline: none;
-  }
-  #fill:focus { border-color: var(--accent); }
   header button {
     background: transparent;
     border: 1px solid var(--panel-edge);
@@ -53,6 +41,7 @@
     cursor: pointer;
   }
   header button:hover { color: var(--text); border-color: var(--accent); }
+  #reset { margin-left: auto; }
   #clear:hover { color: #e2686d; border-color: #e2686d; }
   #board {
     flex: 1;
@@ -144,6 +133,61 @@
     padding: 0 2px;
   }
   .card .kill:hover { color: #e2686d; }
+  .card .note {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #editor[hidden] { display: none; }
+  #editor {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 12, 16, .6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #editor .sheet {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 10px;
+    width: 460px;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+  }
+  #editor input, #editor textarea {
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font: inherit;
+    outline: none;
+  }
+  #editor input:focus, #editor textarea:focus { border-color: var(--accent); }
+  #editor textarea { resize: vertical; min-height: 120px; line-height: 1.45; }
+  #editor .foot { display: flex; align-items: center; gap: 8px; }
+  #editor .foot span { color: var(--muted); font-size: 11px; }
+  #editor button {
+    background: transparent;
+    border: 1px solid var(--panel-edge);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font: inherit;
+    cursor: pointer;
+  }
+  #editor button:hover { color: var(--text); border-color: var(--accent); }
+  #editor-save { margin-left: auto; }
   .add { display: flex; padding: 0 10px 10px; }
   .add input {
     flex: 1;
@@ -161,18 +205,53 @@
 <body>
 <header>
   <h1>Kanban</h1>
-  <input id="fill" placeholder="fill the backlog…">
   <button id="reset" title="move everything that is not done back to the backlog">Reset</button>
   <button id="clear" title="delete every card">Full reset</button>
 </header>
 <div id="board"></div>
+
+<div id="editor" hidden>
+  <div class="sheet">
+    <input id="editor-title" placeholder="Title">
+    <textarea id="editor-text" placeholder="Description…"></textarea>
+    <div class="foot">
+      <span id="editor-stamp"></span>
+      <button id="editor-cancel">Cancel</button>
+      <button id="editor-save">Save</button>
+    </div>
+  </div>
+</div>
 
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <script>
 let board = null;
 let dragged = null;
 let draggedColumn = null;
-let backlog = "";
+let editing = null;
+
+function openEditor(card) {
+  editing = card.id;
+  document.getElementById("editor-title").value = card.title;
+  document.getElementById("editor-text").value = card.text || "";
+  document.getElementById("editor-stamp").textContent = card.created ? "created " + card.created : "";
+  document.getElementById("editor").hidden = false;
+  const title = document.getElementById("editor-title");
+  title.focus();
+  title.select();
+}
+
+function closeEditor() {
+  editing = null;
+  document.getElementById("editor").hidden = true;
+}
+
+function saveEditor() {
+  const title = document.getElementById("editor-title").value.trim();
+  if (editing && title) {
+    board.edit_card(editing, title, document.getElementById("editor-text").value);
+  }
+  closeEditor();
+}
 
 function cardNode(card) {
   const li = document.createElement("li");
@@ -183,6 +262,12 @@ function cardNode(card) {
   const title = document.createElement("div");
   title.className = "title";
   title.textContent = card.title;
+  if (card.text) {
+    const note = document.createElement("span");
+    note.className = "note";
+    note.textContent = card.text;
+    title.appendChild(note);
+  }
   if (card.created) {
     const stamp = document.createElement("span");
     stamp.className = "created";
@@ -193,7 +278,10 @@ function cardNode(card) {
   const kill = document.createElement("button");
   kill.className = "kill";
   kill.textContent = "×";
-  kill.addEventListener("click", () => board.delete_card(card.id));
+  kill.addEventListener("click", (event) => {
+    event.stopPropagation();
+    board.delete_card(card.id);
+  });
 
   const due = document.createElement("input");
   due.type = "date";
@@ -202,8 +290,10 @@ function cardNode(card) {
   due.title = "deadline";
   due.addEventListener("change", () => board.set_deadline(card.id, due.value));
   due.addEventListener("mousedown", (event) => event.stopPropagation());
+  due.addEventListener("click", (event) => event.stopPropagation());
   title.appendChild(due);
 
+  li.addEventListener("click", () => openEditor(card));
   li.append(title, kill);
   li.addEventListener("dragstart", () => {
     dragged = card.id;
@@ -315,8 +405,6 @@ function columnNode(column) {
 }
 
 function render(data) {
-  backlog = data.backlog;
-  document.getElementById("fill").disabled = !backlog;
   const root = document.getElementById("board");
   root.textContent = "";
   data.columns.forEach((column) => root.appendChild(columnNode(column)));
@@ -339,17 +427,23 @@ function refresh() {
   board.snapshot((payload) => render(JSON.parse(payload)));
 }
 
-function wireHeader() {
-  const fill = document.getElementById("fill");
-  fill.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && backlog && fill.value.trim()) {
-      board.add_card(backlog, fill.value);
-      fill.value = "";
-    }
+function wireEditor() {
+  document.getElementById("editor-save").addEventListener("click", saveEditor);
+  document.getElementById("editor-cancel").addEventListener("click", closeEditor);
+  document.getElementById("editor").addEventListener("click", (event) => {
+    if (event.target.id === "editor") closeEditor();
   });
+  document.addEventListener("keydown", (event) => {
+    if (!editing) return;
+    if (event.key === "Escape") closeEditor();
+    else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) saveEditor();
+  });
+}
+
+function wireHeader() {
   document.getElementById("reset").addEventListener("click", () => board.reset());
   document.getElementById("clear").addEventListener("click", () => {
-    if (confirm("Delete every card on the board?")) board.clear();
+    if (confirm("Delete every card and start over?")) board.clear();
   });
 }
 
@@ -357,6 +451,7 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
   board = channel.objects.board;
   board.changed.connect(refresh);
   wireHeader();
+  wireEditor();
   wireBoard();
   refresh();
 });
