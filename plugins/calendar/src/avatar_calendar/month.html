@@ -64,6 +64,7 @@
   .num { font-size: 13px; }
   .dots { display: flex; flex-wrap: wrap; gap: 3px; }
   .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .dot.deadline { background: #e0a458; }
 
   #panel {
     width: 300px;
@@ -95,7 +96,9 @@
     align-items: flex-start;
   }
   #notes .title { flex: 1; line-height: 1.35; }
-  #notes .created { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+  #notes .detail { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+  #notes li.deadline { border-left: 3px solid #e0a458; }
+  #notes li.deadline .detail { color: #e0a458; }
   #notes .kill {
     background: none;
     border: none;
@@ -163,9 +166,9 @@ function dayCell(cell) {
   if (notes.length) {
     const dots = document.createElement("div");
     dots.className = "dots";
-    notes.slice(0, 6).forEach(() => {
+    notes.slice(0, 6).forEach((note) => {
       const dot = document.createElement("span");
-      dot.className = "dot";
+      dot.className = note.kind === "deadline" ? "dot deadline" : "dot";
       dots.appendChild(dot);
     });
     box.appendChild(dots);
@@ -222,21 +225,25 @@ function renderPanel() {
 
   notes.forEach((note) => {
     const item = document.createElement("li");
+    if (note.kind === "deadline") item.className = "deadline";
 
     const title = document.createElement("div");
     title.className = "title";
     title.textContent = note.title;
     const stamp = document.createElement("span");
-    stamp.className = "created";
-    stamp.textContent = note.created;
+    stamp.className = "detail";
+    stamp.textContent = note.detail;
     title.appendChild(stamp);
+    item.appendChild(title);
 
-    const kill = document.createElement("button");
-    kill.className = "kill";
-    kill.textContent = "×";
-    kill.addEventListener("click", () => bridge.delete_note(note.id));
+    if (note.kind === "note") {
+      const kill = document.createElement("button");
+      kill.className = "kill";
+      kill.textContent = "×";
+      kill.addEventListener("click", () => bridge.delete_note(note.id));
+      item.appendChild(kill);
+    }
 
-    item.append(title, kill);
     list.appendChild(item);
   });
 }

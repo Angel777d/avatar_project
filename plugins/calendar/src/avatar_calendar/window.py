@@ -22,14 +22,21 @@ WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 def notes_by_day(data_storage: DataStorage) -> dict:
 	grouped = {}
-	for entity in data_storage.get_collection(CalendarNoteEC):
+
+	for entity in data_storage.get_collection(DateEC):
+		if not entity.has_component(NoteEC):
+			continue
 		note = entity.get_component(NoteEC)
-		day = entity.get_component(DateEC).value.isoformat()
-		grouped.setdefault(day, []).append({
+		mine = entity.has_component(CalendarNoteEC)
+		grouped.setdefault(entity.get_component(DateEC).value.isoformat(), []).append({
 			"id": entity.get_component(StaticIdEC).static_id,
 			"title": note.title,
-			"created": note.created.strftime("%H:%M"),
+			"detail": note.created.strftime("%H:%M") if mine else "due",
+			"kind": "note" if mine else "deadline",
 		})
+
+	for items in grouped.values():
+		items.sort(key=lambda item: (item["kind"] != "note", item["title"]))
 	return grouped
 
 

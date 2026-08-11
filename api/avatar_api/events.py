@@ -1,5 +1,7 @@
 REQUEST_APP_CLOSE = "request.app.close"
 REQUEST_NOTIFICATION_SHOW = "request.notification.show"
+REQUEST_PAGE_REGISTER = "request.page.register"
+REQUEST_PAGE_SHOW = "request.page.show"
 REQUEST_TIMER_START = "request.timer.start"
 REQUEST_TIMER_CANCEL = "request.timer.cancel"
 

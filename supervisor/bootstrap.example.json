@@ -9,6 +9,7 @@
   "packages": [
     "avatar.core",
     "avatar.ui",
+    "avatar_shell",
     "avatar_default",
     "avatar_kanban",
     "avatar_calendar",

@@ -11,9 +11,9 @@ from avatar_api.components import (
 	TimerEC,
 )
 from avatar_api.menu import add_menu_item
-from avatar_ui.window import HtmlWindow
 
-from avatar_pomodoro.components import PomodoroSessionEC, PomodoroSettingsEC
+from avatar_pomodoro import migrations
+from avatar_pomodoro.components import PomodoroLogEC, PomodoroSettingsEC
 from avatar_pomodoro.window import (
 	ACTION_PHASE_CHANGED,
 	EVENT_OPEN,
@@ -27,6 +27,7 @@ from avatar_pomodoro.window import (
 )
 
 MENU_ITEM = "Open pomodoro"
+PAGE_TITLE = "Pomodoro"
 SOURCE = "pomodoro"
 TIMER = "pomodoro"
 
@@ -48,7 +49,6 @@ class PomodoroSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__bridge: Optional[PomodoroBridge] = None
-		self.__window: Optional[HtmlWindow] = None
 		self.__phase = PHASE_IDLE
 		self.__total = 0.0
 		self.__paused = 0.0
@@ -56,8 +56,9 @@ class PomodoroSystem(System):
 		self.__sequence = 0
 
 	async def start(self):
-		self.env.registry.register(PomodoroSessionEC, "pomodoro_session")
 		self.env.registry.register(PomodoroSettingsEC, "pomodoro_settings")
+		self.env.registry.register(PomodoroLogEC, "pomodoro_log")
+		migrations.register(self.env.migrations)
 
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 
@@ -71,11 +72,12 @@ class PomodoroSystem(System):
 		self.add_listener(EVENT_SETTINGS, self.__on_settings)
 		self.add_listener(events.ACTION_TIMER_COMPLETE, self.__on_timer_complete)
 
+		self.__bridge = PomodoroBridge(self.env, self.snapshot)
+		await self.env.event_bus.dispatch_async(
+			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"pomodoro": self.__bridge})
+
 	async def stop(self):
 		await super().stop()
-		if self.__window:
-			self.__window.close()
-			self.__window = None
 		self.__bridge = None
 
 	async def _update(self, delta_time: float):
@@ -92,6 +94,8 @@ class PomodoroSystem(System):
 			"remaining": int(remaining + 0.5),
 			"total": int(self.__total),
 			"done_today": self.__done_today(),
+			"focus_today": int(self.log().focus(date.today())),
+			"done_total": self.log().total,
 			"streak": self.__cycle,
 			"sequence": self.__sequence,
 			"sequences": int(self.settings().sequences),
@@ -127,29 +131,26 @@ class PomodoroSystem(System):
 		self.__total = float(self.settings().work)
 		self.__paused = self.__total
 
+	def log(self) -> PomodoroLogEC:
+		for entity in self.env.data_storage.get_collection(PomodoroLogEC):
+			return entity.get_component(PomodoroLogEC)
+
+		entity = self.env.data_storage.create_entity()
+		entity.add_component(StaticIdEC())
+		log = PomodoroLogEC()
+		entity.add_component(log)
+		return log
+
 	def __timer(self) -> Optional[TimerEC]:
 		entity = self.env.data_storage.get_collection(TimerEC).find(TimerEC.make_hash(TIMER))
 		return entity.get_component(TimerEC) if entity is not None else None
 
 	def __done_today(self) -> int:
-		today = date.today()
-		return sum(
-			1 for entity in self.env.data_storage.get_collection(PomodoroSessionEC)
-			if entity.get_component(DateEC).value == today
-		)
+		return self.log().count(date.today())
 
 	def __changed(self):
 		if self.__bridge:
 			self.__bridge.changed.emit()
-
-	def __open(self):
-		if self.__window is None:
-			self.__bridge = PomodoroBridge(self.env, self.snapshot)
-			self.__window = HtmlWindow("Pomodoro", PAGE, {"pomodoro": self.__bridge}, size=(380, 470))
-			self.add_task(self.__window.load())
-		self.__window.show()
-		self.__window.raise_()
-		self.__window.activateWindow()
 
 	async def __run(self, seconds: float):
 		await self.env.event_bus.dispatch_async(
@@ -174,12 +175,7 @@ class PomodoroSystem(System):
 		)
 
 	def __record(self):
-		entity = self.env.data_storage.create_entity()
-		entity.add_component(StaticIdEC())
-		entity.add_component(NoteEC("Pomodoro"))
-		entity.add_component(DateEC(date.today()))
-		entity.add_component(DurationEC(timedelta(seconds=self.settings().work)))
-		entity.add_component(PomodoroSessionEC(PHASE_WORK))
+		self.log().add(date.today(), float(self.settings().work))
 
 	async def __finish(self):
 		if self.__phase == PHASE_WORK:
@@ -209,7 +205,7 @@ class PomodoroSystem(System):
 		await self.__finish()
 
 	async def __on_open(self):
-		self.__open()
+		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)
 
 	async def __on_start(self):
 		if self.__timer() is not None:

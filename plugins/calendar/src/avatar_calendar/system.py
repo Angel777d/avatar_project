@@ -1,10 +1,9 @@
 from datetime import date
 from typing import Optional
 
-from avatar_api import Entity, Env, System
+from avatar_api import Entity, Env, System, events
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
-from avatar_ui.window import HtmlWindow
 
 from avatar_calendar.components import CalendarNoteEC
 from avatar_calendar.window import (
@@ -16,13 +15,13 @@ from avatar_calendar.window import (
 )
 
 MENU_ITEM = "Open calendar"
+PAGE_TITLE = "Calendar"
 
 
 class CalendarSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__bridge: Optional[CalendarBridge] = None
-		self.__window: Optional[HtmlWindow] = None
 
 	async def start(self):
 		self.env.registry.register(CalendarNoteEC, "calendar_note")
@@ -32,22 +31,15 @@ class CalendarSystem(System):
 		self.add_listener(EVENT_OPEN, self.__on_open)
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_DELETE, self.__on_delete)
+		self.add_listener(events.ACTION_STORAGE_CHANGED, self.__on_storage_changed)
+
+		self.__bridge = CalendarBridge(self.env)
+		await self.env.event_bus.dispatch_async(
+			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"calendar": self.__bridge})
 
 	async def stop(self):
 		await super().stop()
-		if self.__window:
-			self.__window.close()
-			self.__window = None
 		self.__bridge = None
-
-	def __open(self):
-		if self.__window is None:
-			self.__bridge = CalendarBridge(self.env)
-			self.__window = HtmlWindow("Calendar", PAGE, {"calendar": self.__bridge}, size=(880, 620))
-			self.add_task(self.__window.load())
-		self.__window.show()
-		self.__window.raise_()
-		self.__window.activateWindow()
 
 	def __changed(self):
 		if self.__bridge:
@@ -59,8 +51,11 @@ class CalendarSystem(System):
 			return None
 		return entity
 
+	async def __on_storage_changed(self):
+		self.__changed()
+
 	async def __on_open(self):
-		self.__open()
+		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)
 
 	async def __on_add(self, day: str, title: str):
 		title = title.strip()

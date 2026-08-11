@@ -8,8 +8,8 @@
 | `avatar.api` | components, event names, `Env`, `TypeRegistry` | `angelovich.core` |
 | `avatar.core` | main loop, systems, plugin policy, storage, timers | `avatar.api` |
 | `avatar.host` | the Qt entry point: `QApplication`, `QtAsyncio`, `avatar_host` | `avatar.core`, PySide6 |
-| `avatar.ui` | `HtmlWindow`, `TransparentWindow` | PySide6 |
-| `plugins/*` | `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro` | `avatar.api`, `avatar.ui` |
+| `avatar.ui` | `HtmlPage`, `TabbedWindow`, `HtmlWindow`, `TransparentWindow` | PySide6 |
+| `plugins/*` | `avatar_shell`, `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro` | `avatar.api`, `avatar.ui` |
 
 **Dependency rule: a plugin depends on the api and the ui, never on the core.** `avatar.api` re-exports everything a plugin needs, so `angelovich.core` is not a plugin dependency either. Core depends on api; api never on core.
 
@@ -38,11 +38,14 @@
 | --- | --- |
 | `request.app.close` | unwind the application |
 | `request.notification.show` | show this `NotificationEC` — the avatar queues and speaks them |
+| `request.page.register` (title, path, objects, window="") | contribute a page; it becomes a tab in that window |
+| `request.page.show` (title, window="") | open the window and select that tab |
 | `request.timer.start` (name, started, duration) | run a named timer; starting an existing name replaces it |
 | `request.timer.cancel` (name) | drop it silently |
 | `action.timer.complete` (name) | its deadline passed and the entity is gone |
 | `action.notification.shown` | one finished being displayed |
 | `action.storage.restored` | entities are back; a plugin seeds defaults here if its collection is empty |
+| `action.storage.changed` | shared data a plugin does not own has moved — anything displaying it refreshes. Announce it when touching a component another plugin reads, `DateEC` above all; a change to your own components does not need it |
 
 A plugin's own events are its own business — `request.kanban.*`, `request.pomodoro.*` and so on live with the plugin.
 
@@ -62,12 +65,25 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 
 Still missing for a real release: `avatar_project` is a private repository, so installing from it needs credentials, and the packages are not published anywhere.
 
+## Windows
+
+Plugins do not own windows. A plugin registers a page and asks for it by title; the `avatar_shell` plugin owns the windows and puts each page in a tab.
+
+- One window per **window name**, default `""`. Pass a name to get a second window instead of another tab.
+- A window is created on the first `request.page.show` for it, and a tab's web view is built and loaded the first time that tab is shown — registering costs nothing.
+- Tabs appear in registration order, which follows plugin discovery order.
+- **Minimum window size is 720x520** and the default is 960x640, so a page must stay usable at the minimum: fill the space or centre in it. Pomodoro centres, kanban and calendar fill.
+- `avatar_shell` subscribes in its constructor rather than in `start()`, because plugins register their pages during `start()` and system start order follows discovery order.
+
 ## Data
 
-- Plugins share data as **components**, not tables. A plugin owning a concept owns its component class.
+- Plugins share data as **components**, not tables. A plugin owning a concept owns its component class; a concept two plugins both speak is an api component.
+- **`DateEC` means the calendar shows it.** It is the shared "this belongs on a day": a calendar note is filed under one, a kanban card's deadline is one. The calendar lists everything carrying a `DateEC` and a `NoteEC`, and only offers to delete the entities it owns. Adding, changing or dropping one is announced with `action.storage.changed`, or the calendar keeps showing the old month until something else redraws it. Anything that merely *records* when something happened must not use `DateEC` — keep a date of your own, or read `NoteEC.created`.
+- A plugin migrating its own stored shape keeps a version marker (`KanbanStateEC`) so the migration runs once. Pomodoro needs none: folding session entities into `PomodoroLogEC` removes them, so there is nothing left to fold.
 - `TypeRegistry` maps component classes to stable names; a rename orphans stored rows, so persisted types pass an explicit name. A field *added* later loads with its default; a rename or a type change still needs a migration.
 - Entities carrying `StaticIdEC` persist to sqlite (WAL) at `%LOCALAPPDATA%\avatar_project\avatar.db`, one row per entity. Entity ids are per-session; `StaticIdEC` is the identity that survives.
-- A component whose type nothing registered is kept as stored and written back beside the live ones, so running with a plugin disabled neither drops its data nor discards edits to the rest.
+- A row whose json will not parse, or whose type nothing registered, is left where it is rather than swept away.
 - Saving happens at shutdown only — a crash costs the session.
-- The menu is data: `MenuItemEC` carries a name and the event to dispatch. Core contributes `Close`, plugins contribute their own.
+- The menu is data, split in two: `MenuItemEC` is what an entry is called, `ActionEC` is the event it dispatches. Core contributes `Close`, plugins contribute their own.
+- **`ActionEC` is not menu-specific.** Any entity can carry one and be triggered with `trigger(event_bus, entity, *args)`; the avatar's menu is simply the first thing that does. `set_action` attaches or replaces one.
 - Timers are data too: `TimerEC` is keyed on its name and carries the start and duration, so a UI reads the remaining time straight from the storage.

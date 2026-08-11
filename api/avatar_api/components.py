@@ -85,7 +85,12 @@ class TimerEC(EntityHashComponent):
 
 
 class MenuItemEC(EntityComponent):
-	def __init__(self, name: str = "", event: str = ""):
+	def __init__(self, name: str = ""):
 		super().__init__()
 		self.name: str = name
+
+
+class ActionEC(EntityComponent):
+	def __init__(self, event: str = ""):
+		super().__init__()
 		self.event: str = event

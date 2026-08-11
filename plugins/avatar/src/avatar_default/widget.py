@@ -13,7 +13,8 @@ from PySide6.QtGui import (
 	QRadialGradient,
 	QRegion,
 )
-from avatar_api.components import TimerEC
+from avatar_api.action import trigger
+from avatar_api.components import MenuItemEC, TimerEC
 from avatar_api.menu import menu_items
 from avatar_ui.transparent import TransparentWindow
 
@@ -104,8 +105,8 @@ class AvatarWidget(TransparentWindow):
 	def menu_actions(self) -> List[Tuple[str, Callable[[], None]]]:
 		bus = self.__env.event_bus
 		return [
-			(item.name, lambda event=item.event: bus.dispatch(event))
-			for item in menu_items(self.__env.data_storage)
+			(entity.get_component(MenuItemEC).name, lambda item=entity: trigger(bus, item))
+			for entity in menu_items(self.__env.data_storage)
 		]
 
 	def __apply_shape(self) -> None:

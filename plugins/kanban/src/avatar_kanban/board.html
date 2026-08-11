@@ -62,7 +62,9 @@
     max-height: 100%;
   }
   .column.drop { border-color: var(--accent); }
+  .column.moving { opacity: .45; }
   .column h2 {
+    cursor: grab;
     font-size: 12px;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -71,6 +73,20 @@
     padding: 12px 14px 8px;
     display: flex;
     justify-content: space-between;
+  }
+  .column h2 input {
+    flex: 1;
+    min-width: 0;
+    margin-right: 8px;
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+    color: var(--text);
+    padding: 1px 5px;
+    font: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    outline: none;
   }
   .cards {
     list-style: none;
@@ -94,6 +110,19 @@
   .card.dragging { opacity: .4; }
   .card .title { flex: 1; line-height: 1.35; }
   .card .created { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .card .due {
+    margin-top: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 2px 4px;
+    font: inherit;
+    font-size: 11px;
+    color-scheme: dark;
+  }
+  .card .due:hover, .card .due:focus { border-color: var(--card-edge); outline: none; }
+  .card .due.set { color: #e0a458; }
   .card .kill {
     background: none;
     border: none;
@@ -130,6 +159,7 @@
 <script>
 let board = null;
 let dragged = null;
+let draggedColumn = null;
 
 window.setStatus = (text) => {
   document.getElementById("status").textContent = text;
@@ -156,6 +186,15 @@ function cardNode(card) {
   kill.textContent = "×";
   kill.addEventListener("click", () => board.delete_card(card.id));
 
+  const due = document.createElement("input");
+  due.type = "date";
+  due.className = card.deadline ? "due set" : "due";
+  due.value = card.deadline || "";
+  due.title = "deadline";
+  due.addEventListener("change", () => board.set_deadline(card.id, due.value));
+  due.addEventListener("mousedown", (event) => event.stopPropagation());
+  title.appendChild(due);
+
   li.append(title, kill);
   li.addEventListener("dragstart", () => {
     dragged = card.id;
@@ -168,6 +207,15 @@ function cardNode(card) {
   return li;
 }
 
+function columnDropIndex(root, x) {
+  const columns = [...root.querySelectorAll(".column:not(.moving)")];
+  for (let i = 0; i < columns.length; i++) {
+    const box = columns[i].getBoundingClientRect();
+    if (x < box.left + box.width / 2) return i;
+  }
+  return columns.length;
+}
+
 function dropIndex(list, y) {
   const rows = [...list.querySelectorAll(".card:not(.dragging)")];
   for (let i = 0; i < rows.length; i++) {
@@ -177,12 +225,53 @@ function dropIndex(list, y) {
   return rows.length;
 }
 
+function renameColumn(head, label, column) {
+  const input = document.createElement("input");
+  input.value = column.name;
+  head.draggable = false;
+  label.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+  const finish = (commit) => {
+    if (closed) return;
+    closed = true;
+    const name = input.value.trim();
+    head.draggable = true;
+    input.replaceWith(label);
+    if (commit && name && name !== column.name) board.rename_column(column.id, name);
+  };
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") finish(true);
+    else if (event.key === "Escape") finish(false);
+  });
+  input.addEventListener("blur", () => finish(true));
+}
+
 function columnNode(column) {
   const section = document.createElement("section");
   section.className = "column";
 
   const head = document.createElement("h2");
-  head.innerHTML = `<span>${column.name}</span><span>${column.cards.length}</span>`;
+  const label = document.createElement("span");
+  label.textContent = column.name;
+  const count = document.createElement("span");
+  count.textContent = column.cards.length;
+  head.append(label, count);
+  head.draggable = true;
+  head.title = "drag to reorder, double click to rename";
+  label.addEventListener("dblclick", () => renameColumn(head, label, column));
+  head.addEventListener("dragstart", (event) => {
+    draggedColumn = column.id;
+    section.classList.add("moving");
+    event.stopPropagation();
+  });
+  head.addEventListener("dragend", () => {
+    draggedColumn = null;
+    section.classList.remove("moving");
+  });
 
   const list = document.createElement("ul");
   list.className = "cards";
@@ -202,12 +291,13 @@ function columnNode(column) {
 
   section.addEventListener("dragover", (event) => {
     event.preventDefault();
-    section.classList.add("drop");
+    if (!draggedColumn) section.classList.add("drop");
   });
   section.addEventListener("dragleave", () => section.classList.remove("drop"));
   section.addEventListener("drop", (event) => {
     event.preventDefault();
     section.classList.remove("drop");
+    if (draggedColumn) return;
     if (dragged) board.move_card(dragged, column.id, dropIndex(list, event.clientY));
   });
 
@@ -221,6 +311,19 @@ function render(data) {
   data.columns.forEach((column) => root.appendChild(columnNode(column)));
 }
 
+function wireBoard() {
+  const root = document.getElementById("board");
+  root.addEventListener("dragover", (event) => {
+    if (draggedColumn) event.preventDefault();
+  });
+  root.addEventListener("drop", (event) => {
+    if (!draggedColumn) return;
+    event.preventDefault();
+    board.move_column(draggedColumn, columnDropIndex(root, event.clientX));
+    draggedColumn = null;
+  });
+}
+
 function refresh() {
   board.snapshot((payload) => render(JSON.parse(payload)));
 }
@@ -229,6 +332,7 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
   board = channel.objects.board;
   board.changed.connect(refresh);
   document.getElementById("reset").addEventListener("click", () => board.reset());
+  wireBoard();
   refresh();
 });
 </script>

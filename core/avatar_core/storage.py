@@ -8,13 +8,17 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from avatar_api import Env
 from avatar_api.components import StaticIdEC
+from avatar_api.migrations import MigrationRegistry, component_tables, table_of
 from avatar_api.registry import NAME_FIELD
 
 logger = logging.getLogger(__name__)
 
 APP_FOLDER = "avatar_project"
 DB_NAME = "avatar.db"
-TABLE = "core_entities"
+
+PREFIX = "c_"
+LEGACY_TABLE = "core_entities"
+SCHEMA_TABLE = "core_schema"
 
 
 def default_path() -> Path:
@@ -26,8 +30,8 @@ class Storage:
 	def __init__(self, path: Optional[Path] = None):
 		self.path: Path = Path(path) if path else default_path()
 		self.__connection: Optional[sqlite3.Connection] = None
-		self.__unreadable: Set[str] = set()
-		self.__unknown: Dict[str, List[dict]] = {}
+		self.__known: Set[str] = set()
+		self.__protected: Dict[str, Set[str]] = {}
 
 	async def open(self) -> None:
 		await asyncio.to_thread(self.__open)
@@ -37,35 +41,74 @@ class Storage:
 			await asyncio.to_thread(self.__close)
 
 	async def load(self, env: Env) -> int:
-		rows = await asyncio.to_thread(self.__read)
-		self.__unreadable.clear()
-		self.__unknown.clear()
-		restored = 0
-		for static_id, raw in rows:
-			if self.__restore(env, static_id, raw):
-				restored += 1
-		return restored
+		await asyncio.to_thread(self.__migrate_legacy)
+		await asyncio.to_thread(self.__migrate, env.migrations)
+
+		names = self.__registered(env)
+		rows = await asyncio.to_thread(self.__read, names)
+
+		self.__protected.clear()
+		components: Dict[str, list] = {}
+		for name, table_rows in rows.items():
+			for static_id, raw in table_rows:
+				component = self.__decode(env, name, static_id, raw)
+				if component is not None:
+					components.setdefault(static_id, []).append(component)
+
+		for static_id, parts in components.items():
+			entity = env.data_storage.create_entity()
+			entity.add_component(StaticIdEC(static_id))
+			for component in parts:
+				entity.add_component(component)
+
+		self.__known = set(components)
+		return len(components)
 
 	async def save(self, env: Env) -> int:
-		rows = []
+		live: Dict[str, List[Tuple[str, str]]] = {}
+		live_ids: Set[str] = set()
+
 		for entity in env.data_storage.get_collection(StaticIdEC):
 			static_id = entity.get_component(StaticIdEC).static_id
-			payloads = env.registry.encode_entity(entity)
-			kept = self.__unknown.get(static_id)
-			if kept:
-				live = {payload[NAME_FIELD] for payload in payloads}
-				payloads = payloads + [p for p in kept if p.get(NAME_FIELD) not in live]
-			rows.append((static_id, json.dumps(payloads)))
-		await asyncio.to_thread(self.__write, rows)
-		return len(rows)
+			live_ids.add(static_id)
+			for component_type in env.registry.types:
+				if component_type is StaticIdEC or not entity.has_component(component_type):
+					continue
+				payload = env.registry.encode(entity.get_component(component_type))
+				if payload is None:
+					continue
+				name = payload[NAME_FIELD]
+				live.setdefault(name, []).append((static_id, json.dumps(payload)))
+
+		removed = self.__known - live_ids
+		await asyncio.to_thread(self.__write, live, self.__registered(env), removed)
+		self.__known = live_ids
+		return len(live_ids)
+
+	def __registered(self, env: Env) -> List[str]:
+		return [
+			env.registry.name_of(component_type)
+			for component_type in env.registry.types
+			if component_type is not StaticIdEC
+		]
+
+	def __decode(self, env: Env, name: str, static_id: str, raw: str):
+		try:
+			payload = json.loads(raw)
+		except json.JSONDecodeError:
+			logger.error("%s row %s is not readable, left untouched", name, static_id)
+			self.__protected.setdefault(name, set()).add(static_id)
+			return None
+
+		component = env.registry.decode(payload)
+		if component is None:
+			self.__protected.setdefault(name, set()).add(static_id)
+		return component
 
 	def __open(self) -> None:
 		self.path.parent.mkdir(parents=True, exist_ok=True)
 		self.__connection = sqlite3.connect(self.path)
 		self.__connection.execute("pragma journal_mode=wal")
-		self.__connection.execute(
-			f"create table if not exists {TABLE} (static_id text primary key, data text not null)"
-		)
 		self.__connection.commit()
 
 	def __close(self) -> None:
@@ -73,47 +116,125 @@ class Storage:
 		self.__connection.close()
 		self.__connection = None
 
-	def __read(self) -> List[Tuple[str, str]]:
-		return self.__connection.execute(f"select static_id, data from {TABLE}").fetchall()
+	def __tables(self) -> Set[str]:
+		return set(component_tables(self.__connection))
 
-	def __write(self, rows: Sequence[Tuple[str, str]]) -> None:
-		keep = [static_id for static_id, _ in rows] + sorted(self.__unreadable)
+	def __ensure(self, table: str) -> None:
+		self.__connection.execute(
+			f'create table if not exists "{table}" '
+			f"(static_id text primary key, data text not null)"
+		)
+
+	def __read(self, names: Sequence[str]) -> Dict[str, List[Tuple[str, str]]]:
+		existing = self.__tables()
+		rows = {}
+		for name in names:
+			table = table_of(name)
+			if table not in existing:
+				continue
+			rows[name] = self.__connection.execute(
+				f'select static_id, data from "{table}"'
+			).fetchall()
+		return rows
+
+	def __write(self,
+	            live: Dict[str, List[Tuple[str, str]]],
+	            names: Sequence[str],
+	            removed: Set[str]) -> None:
 		with self.__connection as connection:
-			connection.executemany(
-				f"insert into {TABLE} (static_id, data) values (?, ?) "
-				f"on conflict(static_id) do update set data = excluded.data",
-				rows,
-			)
-			if keep:
-				marks = ",".join("?" * len(keep))
-				connection.execute(f"delete from {TABLE} where static_id not in ({marks})", keep)
-			else:
-				connection.execute(f"delete from {TABLE}")
+			for name, rows in live.items():
+				table = table_of(name)
+				self.__ensure(table)
+				connection.executemany(
+					f'insert into "{table}" (static_id, data) values (?, ?) '
+					f"on conflict(static_id) do update set data = excluded.data",
+					rows,
+				)
 
-	def __restore(self, env: Env, static_id: str, raw: str) -> bool:
-		try:
-			payloads = json.loads(raw)
-		except json.JSONDecodeError:
-			logger.error("entity %s is not readable, left untouched", static_id)
-			self.__unreadable.add(static_id)
-			return False
+			existing = self.__tables()
+			for name in names:
+				table = table_of(name)
+				if table not in existing:
+					continue
+				keep = [static_id for static_id, _ in live.get(name, ())]
+				keep += sorted(self.__protected.get(name, ()))
+				if keep:
+					marks = ",".join("?" * len(keep))
+					connection.execute(
+						f'delete from "{table}" where static_id not in ({marks})', keep
+					)
+				else:
+					connection.execute(f'delete from "{table}"')
 
-		components = []
-		kept = []
-		for payload in payloads:
-			component = env.registry.decode(payload)
-			if component is None:
-				kept.append(payload)
-			else:
-				components.append(component)
+			if removed:
+				marks = ",".join("?" * len(removed))
+				ids = sorted(removed)
+				for table in existing:
+					connection.execute(
+						f'delete from "{table}" where static_id in ({marks})', ids
+					)
 
-		if kept:
-			logger.warning("entity %s carries %d unregistered types, kept as stored", static_id, len(kept))
-			self.__unknown[static_id] = kept
-		if not any(isinstance(component, StaticIdEC) for component in components):
-			return False
+	def __versions(self) -> dict:
+		self.__connection.execute(
+			f"create table if not exists {SCHEMA_TABLE} "
+			f"(name text primary key, version integer not null)"
+		)
+		return dict(self.__connection.execute(f"select name, version from {SCHEMA_TABLE}"))
 
-		entity = env.data_storage.create_entity()
-		for component in components:
-			entity.add_component(component)
-		return True
+	def __set_version(self, name: str, version: int) -> None:
+		self.__connection.execute(
+			f"insert into {SCHEMA_TABLE} (name, version) values (?, ?) "
+			f"on conflict(name) do update set version = excluded.version",
+			(name, version),
+		)
+
+	def __migrate(self, migrations: MigrationRegistry) -> None:
+		current = self.__versions()
+		existing = self.__tables()
+
+		with self.__connection as connection:
+			for name in migrations.names:
+				latest = migrations.latest(name)
+				if name not in current and table_of(name) not in existing:
+					self.__set_version(name, latest)
+					continue
+
+				version = current.get(name, 0)
+				for step_version, step in migrations.steps(name):
+					if step_version <= version:
+						continue
+					logger.info("migrating %s to version %d", name, step_version)
+					step(connection)
+					self.__set_version(name, step_version)
+					version = step_version
+
+	def __migrate_legacy(self) -> None:
+		present = self.__connection.execute(
+			"select name from sqlite_master where type = 'table' and name = ?", (LEGACY_TABLE,)
+		).fetchone()
+		if not present:
+			return
+
+		moved = 0
+		with self.__connection as connection:
+			for static_id, raw in connection.execute(
+					f"select static_id, data from {LEGACY_TABLE}").fetchall():
+				try:
+					payloads = json.loads(raw)
+				except json.JSONDecodeError:
+					logger.error("entity %s is not readable, dropped by the split", static_id)
+					continue
+				for payload in payloads:
+					name = payload.get(NAME_FIELD)
+					if not name or name == StaticIdEC.__name__:
+						continue
+					table = table_of(name)
+					self.__ensure(table)
+					connection.execute(
+						f'insert into "{table}" (static_id, data) values (?, ?) '
+						f"on conflict(static_id) do update set data = excluded.data",
+						(static_id, json.dumps(payload)),
+					)
+					moved += 1
+			connection.execute(f"drop table {LEGACY_TABLE}")
+		logger.info("split %d stored components out of %s", moved, LEGACY_TABLE)

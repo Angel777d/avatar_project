@@ -1,3 +1,6 @@
+from datetime import date
+from typing import Dict, Optional
+
 from avatar_api import EntityComponent
 
 DEFAULT_WORK_S = 25 * 60
@@ -7,10 +10,28 @@ DEFAULT_LONG_BREAK_EVERY = 4
 DEFAULT_SEQUENCES = 4
 
 
-class PomodoroSessionEC(EntityComponent):
-	def __init__(self, phase: str = ""):
+class PomodoroLogEC(EntityComponent):
+	def __init__(self,
+	             days: Optional[Dict[str, int]] = None,
+	             seconds: Optional[Dict[str, float]] = None):
 		super().__init__()
-		self.phase: str = phase
+		self.days: Dict[str, int] = days or {}
+		self.seconds: Dict[str, float] = dict(seconds or {})
+
+	def add(self, day: date, focus: float = 0.0, count: int = 1) -> None:
+		key = day.isoformat()
+		self.days[key] = self.days.get(key, 0) + count
+		self.seconds[key] = self.seconds.get(key, 0.0) + float(focus)
+
+	def count(self, day: date) -> int:
+		return self.days.get(day.isoformat(), 0)
+
+	def focus(self, day: date) -> float:
+		return self.seconds.get(day.isoformat(), 0.0)
+
+	@property
+	def total(self) -> int:
+		return sum(self.days.values())
 
 
 class PomodoroSettingsEC(EntityComponent):
