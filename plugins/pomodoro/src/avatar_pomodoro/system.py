@@ -4,6 +4,7 @@ from typing import List, Optional
 from avatar_api import Entity, Env, System, events
 from avatar_api.components import NotificationEC, StaticIdEC, TimerEC
 from avatar_api.menu import add_menu_item
+from avatar_api.timelog import log_data, log_time, measure
 
 from avatar_pomodoro.components import (
 	DEFAULT_NAME,
@@ -36,6 +37,7 @@ PHASE_BREAK = "break"
 
 MIN_SECONDS = 1
 MAX_SECONDS = 24 * 60 * 60
+MIN_LOGGED = 1.0
 
 LABELS = {
 	PHASE_IDLE: "Ready",
@@ -54,6 +56,7 @@ class PomodoroSystem(System):
 		self.__paused = 0.0
 		self.__cycle = 0
 		self.__sequence = 0
+		self.__segment: Optional[datetime] = None
 
 	async def start(self):
 		self.env.registry.register(PomodoroSettingsEC, "pomodoro_settings")
@@ -73,6 +76,7 @@ class PomodoroSystem(System):
 		self.add_listener(EVENT_PRESET_SAVE, self.__on_preset_save)
 		self.add_listener(EVENT_PRESET_DELETE, self.__on_preset_delete)
 		self.add_listener(events.ACTION_TIMER_COMPLETE, self.__on_timer_complete)
+		self.add_listener(events.REQUEST_APP_CLOSE, self.__on_app_close)
 
 		self.__bridge = PomodoroBridge(self.env, self.snapshot)
 		await self.env.event_bus.dispatch_async(
@@ -185,6 +189,7 @@ class PomodoroSystem(System):
 	def __idle(self):
 		self.__phase = PHASE_IDLE
 		self.__chain = None
+		self.__segment = None
 		self.__total = float(self.settings().work)
 		self.__paused = self.__total
 
@@ -210,9 +215,28 @@ class PomodoroSystem(System):
 			self.__bridge.changed.emit()
 
 	async def __run(self, seconds: float):
+		self.__segment = datetime.now()
 		await self.env.event_bus.dispatch_async(
 			events.REQUEST_TIMER_START, TIMER, datetime.now(), timedelta(seconds=seconds)
 		)
+
+	def __log_segment(self):
+		started, self.__segment = self.__segment, None
+		if started is None:
+			return
+
+		seconds = (datetime.now() - started).total_seconds()
+		if seconds < MIN_LOGGED:
+			return
+
+		settings = self.active()
+		if self.__phase == PHASE_WORK:
+			measured = log_time(self.env.event_bus, started, seconds, SOURCE)
+		else:
+			measured = measure(started, seconds, SOURCE)
+
+		log_data(self.env.event_bus, measured, SOURCE, settings.name,
+		         data={"phase": self.__phase, "sequence": self.__sequence + 1})
 
 	async def __cancel(self):
 		await self.env.event_bus.dispatch_async(events.REQUEST_TIMER_CANCEL, TIMER)
@@ -235,6 +259,7 @@ class PomodoroSystem(System):
 		self.log().add(date.today(), float(self.active().work))
 
 	async def __finish(self):
+		self.__log_segment()
 		if self.__phase == PHASE_WORK:
 			self.__record()
 			self.__cycle += 1
@@ -264,6 +289,9 @@ class PomodoroSystem(System):
 	async def __on_open(self):
 		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)
 
+	async def __on_app_close(self):
+		self.__log_segment()
+
 	async def __on_start(self):
 		if self.__timer() is not None:
 			return
@@ -280,10 +308,12 @@ class PomodoroSystem(System):
 			return
 		self.__paused = timer.remaining()
 		await self.__cancel()
+		self.__log_segment()
 		self.__changed()
 
 	async def __on_reset(self):
 		await self.__cancel()
+		self.__log_segment()
 		self.__cycle = 0
 		self.__sequence = 0
 		self.__idle()

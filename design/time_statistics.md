@@ -17,6 +17,8 @@ One **dict** per dispatch rather than positional arguments, so a field added lat
 
 **A source also records itself.** Pomodoro dispatches `request.log.time` *and* its own `action.log.data` (`type: "pomodoro"`), so a run is counted even when no card was current. The stopwatch does the same. Answering a `request.log.time` is optional; ignoring it costs the answerer nothing.
 
+A source may also record something it will not offer for attribution: a pomodoro **break** announces only `action.log.data`, because the day's break time is worth knowing and no card was ever worked on during it. Anything under a second is dropped.
+
 ## The record
 
 | field | is | |
@@ -78,7 +80,7 @@ It closes on `request.app.close`, not in `stop()`: the application saves *before
 | plugin | change |
 | --- | --- |
 | `avatar.api` | two event names |
-| `avatar_pomodoro` | dispatch both events for the segment that just ended — at a pause and at a work phase completing, `duration` measured rather than planned, so a paused gap and a skip do not count as focus |
+| `avatar_pomodoro` | report the segment that just ended — a phase completing, a pause, a reset, `request.app.close` — `duration` measured rather than planned, so a paused gap and a skip cannot count as focus. `__record` still adds `settings.work` to `PomodoroLogEC`, which counts pomodoros rather than seconds, and stays as it is |
 | `avatar_kanban` | a current card (its own component, its own *Work on this* slot) and a `request.log.time` listener. Separately: columns stop minting `StaticIdEC("todo")` — a uuid like everything else, with the seed name moved into `KanbanColumnEC.key` |
 | `avatar_calendar` | a `request.log.time` listener answering with the event whose `begin`/`end` cover the span |
 | `plugins/stats` | new — stopwatch, log, page. `pip install -e plugins/stats` or discovery never sees it |

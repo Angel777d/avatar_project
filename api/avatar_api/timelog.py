@@ -21,17 +21,21 @@ def new_span() -> str:
 	return uuid.uuid4().hex
 
 
-def log_time(event_bus: Dispatcher,
-             started: datetime,
-             duration: float,
-             source: str,
-             span: str = "") -> dict:
-	measured = {
+def measure(started: datetime, duration: float, source: str, span: str = "") -> dict:
+	return {
 		SPAN: span or new_span(),
 		STARTED: started,
 		DURATION: float(duration),
 		SOURCE: source,
 	}
+
+
+def log_time(event_bus: Dispatcher,
+             started: datetime,
+             duration: float,
+             source: str,
+             span: str = "") -> dict:
+	measured = measure(started, duration, source, span)
 	event_bus.dispatch(REQUEST_LOG_TIME, measured)
 	return measured
 
