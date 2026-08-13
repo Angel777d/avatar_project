@@ -13,7 +13,8 @@
     "avatar_default",
     "avatar_kanban",
     "avatar_calendar",
-    "avatar_pomodoro"
+    "avatar_pomodoro",
+    "avatar_stats"
   ],
   "entry": {
     "module": "avatar_host",

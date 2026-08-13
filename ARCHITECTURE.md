@@ -9,7 +9,7 @@
 | `avatar.core` | main loop, systems, plugin policy, storage, timers | `avatar.api` |
 | `avatar.host` | the Qt entry point: `QApplication`, `QtAsyncio`, `avatar_host` | `avatar.core`, PySide6 |
 | `avatar.ui` | `HtmlPage`, `TabbedWindow`, `HtmlWindow`, `TransparentWindow` | PySide6 |
-| `plugins/*` | `avatar_shell`, `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro` | `avatar.api`, `avatar.ui` |
+| `plugins/*` | `avatar_shell`, `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro`, `avatar_stats` | `avatar.api`, `avatar.ui` |
 
 **Dependency rule: a plugin depends on the api and the ui, never on the core.** `avatar.api` re-exports everything a plugin needs, so `angelovich.core` is not a plugin dependency either. Core depends on api; api never on core.
 
@@ -43,6 +43,8 @@
 | `request.timer.start` (name, started, duration) | run a named timer; starting an existing name replaces it |
 | `request.timer.cancel` (name) | drop it silently |
 | `action.timer.complete` (name) | its deadline passed and the entity is gone |
+| `request.log.time` (measured) | a span of time passed, one dict: `span`, `started`, `duration`, `source`. Whoever can name what the span *was* answers with `action.log.data` |
+| `action.log.data` (record) | that span, named: the dict above plus `type` — the naming plugin — `label`, `ref`, `tags`, `data`. `avatar_stats` files it, nobody else needs to care. `avatar_api.timelog` builds and dispatches both |
 | `action.notification.shown` | one finished being displayed |
 | `action.storage.restored` | entities are back; a plugin seeds defaults here if its collection is empty |
 | `action.storage.changed` | shared data a plugin does not own has moved — anything displaying it refreshes. Announce it when touching a component another plugin reads, `DateEC` above all; a change to your own components does not need it |

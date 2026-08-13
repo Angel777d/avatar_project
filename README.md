@@ -10,6 +10,7 @@ Right-click the avatar for the menu; everything else opens from there.
 - **kanban** — a board of columns with drag and drop, and an optional deadline per card.
 - **calendar** — the current month, notes on a day, and the deadlines other plugins set.
 - **pomodoro** — focus and break timer with its own durations, a count of what ran in a row, and sets that chain one after another.
+- **stats** — where the time went: a stopwatch, whatever the other plugins report, and totals by day, task, plugin and tag.
 
 ## Run
 
@@ -23,7 +24,7 @@ run.bat          start it
 Working from a checkout instead:
 
 ```
-python -m pip install -e ../py_core -e api -e ui -e core -e host -e plugins/shell -e plugins/avatar -e plugins/kanban -e plugins/calendar -e plugins/pomodoro
+python -m pip install -e ../py_core -e api -e ui -e core -e host -e plugins/shell -e plugins/avatar -e plugins/kanban -e plugins/calendar -e plugins/pomodoro -e plugins/stats
 .venv\Scripts\pythonw.exe -m avatar_host
 ```
 

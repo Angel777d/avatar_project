@@ -1,0 +1,148 @@
+from datetime import datetime, timedelta
+from typing import Optional
+
+from avatar_api import Entity, Env, System, events
+from avatar_api.components import StaticIdEC
+from avatar_api.menu import add_menu_item
+from avatar_api.timelog import (
+	DATA,
+	DURATION,
+	LABEL,
+	REF,
+	SOURCE,
+	SPAN,
+	STARTED,
+	TAGS,
+	TYPE,
+	log_data,
+	log_time,
+	new_span,
+)
+
+from avatar_stats.components import LogEntryEC, StopwatchEC
+from avatar_stats.window import (
+	EVENT_ADD,
+	EVENT_FORGET,
+	EVENT_OPEN,
+	EVENT_START,
+	EVENT_STOP,
+	PAGE,
+	StatsBridge,
+)
+
+MENU_ITEM = "Open time"
+PAGE_TITLE = "Time"
+
+TYPE_NAME = "stats"
+SOURCE_MANUAL = "manual"
+UNKNOWN = "unknown"
+
+MIN_SECONDS = 1
+MAX_MINUTES = 24 * 60
+
+
+class StatsSystem(System):
+	def __init__(self, env: Env):
+		super().__init__(env)
+		self.__bridge: Optional[StatsBridge] = None
+
+	async def start(self):
+		self.env.registry.register(LogEntryEC, "log_entry")
+
+		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
+
+		self.add_listener(EVENT_OPEN, self.__on_open)
+		self.add_listener(EVENT_START, self.__on_start)
+		self.add_listener(EVENT_STOP, self.__on_stop)
+		self.add_listener(EVENT_ADD, self.__on_add)
+		self.add_listener(EVENT_FORGET, self.__on_forget)
+		self.add_listener(events.ACTION_LOG_DATA, self.__on_data)
+		self.add_listener(events.REQUEST_APP_CLOSE, self.__on_app_close)
+
+		self.__bridge = StatsBridge(self.env)
+		await self.env.event_bus.dispatch_async(
+			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"stats": self.__bridge})
+
+	async def stop(self):
+		await super().stop()
+		self.__bridge = None
+
+	async def _update(self, delta_time: float):
+		if self.__running() is not None:
+			self.__changed()
+
+	def __changed(self):
+		if self.__bridge:
+			self.__bridge.changed.emit()
+
+	def __running(self) -> Optional[Entity]:
+		for entity in self.env.data_storage.get_collection(StopwatchEC):
+			return entity
+		return None
+
+	def __announce(self, started: datetime, seconds: float, label: str, span: str = ""):
+		measured = log_time(self.env.event_bus, started, seconds, SOURCE_MANUAL, span)
+		log_data(self.env.event_bus, measured, TYPE_NAME, label)
+
+	def __close(self):
+		entity = self.__running()
+		if entity is None:
+			return
+
+		watch = entity.get_component(StopwatchEC)
+		started, seconds, label, span = watch.started, watch.elapsed(), watch.label, watch.span
+		self.env.data_storage.remove_entity(entity)
+		if seconds >= MIN_SECONDS:
+			self.__announce(started, seconds, label, span)
+		self.__changed()
+
+	async def __on_open(self):
+		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)
+
+	async def __on_start(self, label: str = ""):
+		self.__close()
+		entity = self.env.data_storage.create_entity()
+		entity.add_component(StopwatchEC(label.strip(), datetime.now(), new_span()))
+		self.__changed()
+
+	async def __on_stop(self):
+		self.__close()
+
+	async def __on_app_close(self):
+		self.__close()
+
+	async def __on_add(self, label: str, minutes: int):
+		minutes = max(1, min(int(minutes), MAX_MINUTES)) if minutes else 0
+		if not minutes:
+			return
+		seconds = float(minutes * 60)
+		self.__announce(datetime.now() - timedelta(seconds=seconds), seconds, label.strip())
+		self.__changed()
+
+	async def __on_forget(self, entry_id: str):
+		entity = self.env.data_storage.get_collection(StaticIdEC).find(
+			StaticIdEC.make_hash(entry_id))
+		if entity is None or not entity.has_component(LogEntryEC):
+			return
+		self.env.data_storage.remove_entity(entity)
+		self.__changed()
+
+	async def __on_data(self, record: dict):
+		duration = float(record.get(DURATION) or 0.0)
+		if duration <= 0:
+			return
+
+		entity = self.env.data_storage.create_entity()
+		entity.add_component(StaticIdEC())
+		entity.add_component(LogEntryEC(
+			span=record.get(SPAN, ""),
+			started=record.get(STARTED) or datetime.now(),
+			duration=duration,
+			type=record.get(TYPE) or record.get(SOURCE) or UNKNOWN,
+			label=record.get(LABEL, ""),
+			ref=record.get(REF, ""),
+			source=record.get(SOURCE, ""),
+			tags=record.get(TAGS) or (),
+			data=record.get(DATA) or {},
+		))
+		self.__changed()
