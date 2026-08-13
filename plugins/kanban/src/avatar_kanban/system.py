@@ -14,6 +14,7 @@ from avatar_kanban.components import (
 	KanbanColumnEC,
 	KanbanTaskEC,
 )
+from avatar_kanban.migrations import COLUMNS as COLUMNS_SHAPE, generated_ids
 from avatar_kanban.window import (
 	EVENT_ADD,
 	EVENT_CLEAR,
@@ -41,7 +42,8 @@ class KanbanSystem(System):
 
 	async def start(self):
 		self.env.registry.register(KanbanTaskEC, "kanban_task")
-		self.env.registry.register(KanbanColumnEC, "kanban_column")
+		self.env.registry.register(KanbanColumnEC, COLUMNS_SHAPE)
+		self.env.migrations.add(COLUMNS_SHAPE, 1, generated_ids)
 
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 
@@ -74,15 +76,15 @@ class KanbanSystem(System):
 
 	def __ensure_columns(self):
 		known = {
-			entity.get_component(StaticIdEC).static_id: entity for entity in self.__columns()
+			entity.get_component(KanbanColumnEC).key: entity for entity in self.__columns()
 		}
 		position = len(known)
-		for column_id, name, role in DEFAULT_COLUMNS:
-			entity = known.get(column_id)
+		for key, name, role in DEFAULT_COLUMNS:
+			entity = known.get(key)
 			if entity is None:
 				entity = self.env.data_storage.create_entity()
-				entity.add_component(StaticIdEC(column_id))
-				entity.add_component(KanbanColumnEC(name, position, role))
+				entity.add_component(StaticIdEC())
+				entity.add_component(KanbanColumnEC(name, position, role, key))
 				position += 1
 				continue
 			column = entity.get_component(KanbanColumnEC)

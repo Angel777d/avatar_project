@@ -12,11 +12,12 @@ DEFAULT_COLUMNS = (
 
 
 class KanbanColumnEC(EntityComponent):
-	def __init__(self, name: str = "", position: int = 0, role: str = ""):
+	def __init__(self, name: str = "", position: int = 0, role: str = "", key: str = ""):
 		super().__init__()
 		self.name: str = name
 		self.position: int = position
 		self.role: str = role
+		self.key: str = key
 
 
 class KanbanTaskEC(EntityComponent):
