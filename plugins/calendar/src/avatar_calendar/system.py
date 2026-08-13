@@ -1,10 +1,11 @@
-from datetime import date, time
-from typing import Optional
+from datetime import date, datetime, time, timedelta
+from typing import Optional, Tuple
 
 from avatar_api import Entity, Env, System, events
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
-from avatar_api.tags import apply_tags, names_from
+from avatar_api.tags import apply_tags, names_from, tags_of
+from avatar_api.timelog import DURATION, SOURCE, SPAN, STARTED, log_data, measure
 
 from avatar_calendar.components import CalendarNoteEC
 from avatar_calendar.window import (
@@ -18,6 +19,8 @@ from avatar_calendar.window import (
 
 MENU_ITEM = "Open calendar"
 PAGE_TITLE = "Calendar"
+TYPE_NAME = "calendar"
+MIN_LOGGED = 1.0
 
 
 def parse_time(value: str) -> Optional[time]:
@@ -44,6 +47,7 @@ class CalendarSystem(System):
 		self.add_listener(EVENT_DELETE, self.__on_delete)
 		self.add_listener(EVENT_EDIT, self.__on_edit)
 		self.add_listener(events.ACTION_STORAGE_CHANGED, self.__on_storage_changed)
+		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
 		self.__bridge = CalendarBridge(self.env)
 		await self.env.event_bus.dispatch_async(
@@ -65,6 +69,48 @@ class CalendarSystem(System):
 
 	async def __on_storage_changed(self):
 		self.__changed()
+
+	def __overlap(self, entity: Entity, begins: datetime, ends: datetime) -> Tuple[float, datetime]:
+		entry = entity.get_component(CalendarNoteEC)
+		if entry.begin is None or entry.end is None:
+			return 0.0, begins
+
+		day = entity.get_component(DateEC).value
+		opens = datetime.combine(day, entry.begin)
+		closes = datetime.combine(day, entry.end)
+		start = max(opens, begins)
+		stop = min(closes, ends)
+		return max(0.0, (stop - start).total_seconds()), start
+
+	async def __on_log_time(self, measured: dict):
+		begins = measured.get(STARTED)
+		seconds = float(measured.get(DURATION) or 0.0)
+		if begins is None or seconds <= 0:
+			return
+
+		ends = begins + timedelta(seconds=seconds)
+		best: Optional[Entity] = None
+		shared = MIN_LOGGED
+		start = begins
+
+		for entity in self.env.data_storage.get_collection(CalendarNoteEC):
+			if not entity.has_component(DateEC) or not entity.has_component(NoteEC):
+				continue
+			found, opened = self.__overlap(entity, begins, ends)
+			if found >= shared:
+				best, shared, start = entity, found, opened
+
+		if best is None:
+			return
+
+		log_data(
+			self.env.event_bus,
+			measure(start, shared, measured.get(SOURCE, ""), measured.get(SPAN, "")),
+			TYPE_NAME,
+			best.get_component(NoteEC).title,
+			ref=best.get_component(StaticIdEC).static_id,
+			tags=[tag["name"] for tag in tags_of(self.env.data_storage, best)],
+		)
 
 	async def __on_open(self):
 		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)

@@ -81,8 +81,8 @@ It closes on `request.app.close`, not in `stop()`: the application saves *before
 | --- | --- |
 | `avatar.api` | two event names |
 | `avatar_pomodoro` | report the segment that just ended — a phase completing, a pause, a reset, `request.app.close` — `duration` measured rather than planned, so a paused gap and a skip cannot count as focus. `__record` still adds `settings.work` to `PomodoroLogEC`, which counts pomodoros rather than seconds, and stays as it is |
-| `avatar_kanban` | a current card (its own component, its own *Work on this* slot) and a `request.log.time` listener. Separately: columns stop minting `StaticIdEC("todo")` — a uuid like everything else, with the seed name moved into `KanbanColumnEC.key` |
-| `avatar_calendar` | a `request.log.time` listener answering with the event whose `begin`/`end` cover the span |
+| `avatar_kanban` | `KanbanCurrentEC` marks the card being worked on — one at a time, persisted, toggled by the dot on the card — and a `request.log.time` listener answers with its title, id, tags and column name. Separately: columns stop minting `StaticIdEC("todo")` — a uuid like everything else, with the seed name moved into `KanbanColumnEC.key` |
+| `avatar_calendar` | a `request.log.time` listener answering with the dated note whose `begin`/`end` overlap the span the most, **clipped to the overlap** — a 20 minute span reaching 5 minutes into a meeting is 5 minutes of that meeting. The record keeps the span id, so the clipped view and the full one stay tied; a note without both times is not an event and never answers |
 | `plugins/stats` | new — stopwatch, log, page. `pip install -e plugins/stats` or discovery never sees it |
 
 ## Page
