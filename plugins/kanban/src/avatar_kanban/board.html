@@ -108,6 +108,19 @@
     align-items: flex-start;
   }
   .card.dragging { opacity: .4; }
+  .card.current { border-color: var(--accent); }
+  .card .focus {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: .5;
+  }
+  .card .focus:hover { opacity: 1; color: var(--accent); }
+  .card.current .focus { opacity: 1; color: var(--accent); }
   .card .title { flex: 1; line-height: 1.35; }
   .card .created { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
   .card .due {
@@ -177,7 +190,7 @@
 let board = null;
 let dragged = null;
 let draggedColumn = null;
-let latest = {columns: [], tags: []};
+let latest = {columns: [], tags: [], current: ""};
 
 function openEditor(card) {
   avatarEditor.open({
@@ -207,8 +220,9 @@ function tagStrip(tags) {
 }
 
 function cardNode(card) {
+  const current = card.id === latest.current;
   const li = document.createElement("li");
-  li.className = "card";
+  li.className = current ? "card current" : "card";
   li.draggable = true;
   li.dataset.id = card.id;
 
@@ -247,8 +261,17 @@ function cardNode(card) {
   due.addEventListener("click", (event) => event.stopPropagation());
   title.appendChild(due);
 
+  const focus = document.createElement("button");
+  focus.className = "focus";
+  focus.textContent = current ? "◉" : "○";
+  focus.title = current ? "stop working on this" : "work on this — time gets logged against it";
+  focus.addEventListener("click", (event) => {
+    event.stopPropagation();
+    board.set_current(current ? "" : card.id);
+  });
+
   li.addEventListener("click", () => openEditor(card));
-  li.append(title, kill);
+  li.append(title, focus, kill);
   li.addEventListener("dragstart", () => {
     dragged = card.id;
     li.classList.add("dragging");

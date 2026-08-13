@@ -7,7 +7,7 @@ from avatar_api import DataStorage
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.tags import catalogue, tags_of
 
-from avatar_kanban.components import KanbanColumnEC, KanbanTaskEC
+from avatar_kanban.components import KanbanColumnEC, KanbanCurrentEC, KanbanTaskEC
 
 PAGE = Path(__file__).resolve().parent / "board.html"
 
@@ -21,6 +21,13 @@ EVENT_COLUMN_MOVE = "request.kanban.column.move"
 EVENT_COLUMN_RENAME = "request.kanban.column.rename"
 EVENT_RESET = "request.kanban.reset"
 EVENT_CLEAR = "request.kanban.clear"
+EVENT_CURRENT = "request.kanban.current"
+
+
+def current_card(data_storage: DataStorage):
+	for entity in data_storage.get_collection(KanbanCurrentEC):
+		return entity
+	return None
 
 
 def ordered_columns(data_storage: DataStorage) -> list:
@@ -62,7 +69,13 @@ def build_snapshot(data_storage: DataStorage) -> dict:
 			"role": column.role,
 			"cards": cards,
 		})
-	return {"columns": columns, "tags": catalogue(data_storage)}
+
+	current = current_card(data_storage)
+	return {
+		"columns": columns,
+		"tags": catalogue(data_storage),
+		"current": current.get_component(StaticIdEC).static_id if current is not None else "",
+	}
 
 
 class Board(QObject):
@@ -95,6 +108,10 @@ class Board(QObject):
 	@Slot(str)
 	def delete_card(self, card_id: str):
 		self.__env.event_bus.dispatch(EVENT_DELETE, card_id)
+
+	@Slot(str)
+	def set_current(self, card_id: str):
+		self.__env.event_bus.dispatch(EVENT_CURRENT, card_id)
 
 	@Slot(str, int)
 	def move_column(self, column_id: str, position: int):

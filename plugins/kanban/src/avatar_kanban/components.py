@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Optional
+
 from avatar_api import EntityComponent
 
 ROLE_BACKLOG = "backlog"
@@ -25,3 +28,9 @@ class KanbanTaskEC(EntityComponent):
 		super().__init__()
 		self.column: str = column
 		self.position: int = position
+
+
+class KanbanCurrentEC(EntityComponent):
+	def __init__(self, since: Optional[datetime] = None):
+		super().__init__()
+		self.since: datetime = since or datetime.now()

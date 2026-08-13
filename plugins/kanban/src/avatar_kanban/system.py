@@ -5,13 +5,15 @@ from datetime import date
 
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
-from avatar_api.tags import apply_tags, names_from
+from avatar_api.tags import apply_tags, names_from, tags_of
+from avatar_api.timelog import log_data
 
 from avatar_kanban.components import (
 	DEFAULT_COLUMNS,
 	ROLE_BACKLOG,
 	ROLE_DONE,
 	KanbanColumnEC,
+	KanbanCurrentEC,
 	KanbanTaskEC,
 )
 from avatar_kanban.migrations import COLUMNS as COLUMNS_SHAPE, generated_ids
@@ -20,6 +22,7 @@ from avatar_kanban.window import (
 	EVENT_CLEAR,
 	EVENT_COLUMN_MOVE,
 	EVENT_COLUMN_RENAME,
+	EVENT_CURRENT,
 	EVENT_DEADLINE,
 	EVENT_DELETE,
 	EVENT_EDIT,
@@ -28,11 +31,13 @@ from avatar_kanban.window import (
 	EVENT_RESET,
 	PAGE,
 	Board,
+	current_card,
 )
 
 MENU_ITEM = "Open kanban"
 PAGE_TITLE = "Kanban"
 FIRST_CARD = "fill backlog"
+TYPE_NAME = "kanban"
 
 
 class KanbanSystem(System):
@@ -43,6 +48,7 @@ class KanbanSystem(System):
 	async def start(self):
 		self.env.registry.register(KanbanTaskEC, "kanban_task")
 		self.env.registry.register(KanbanColumnEC, COLUMNS_SHAPE)
+		self.env.registry.register(KanbanCurrentEC, "kanban_current")
 		self.env.migrations.add(COLUMNS_SHAPE, 1, generated_ids)
 
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
@@ -59,6 +65,8 @@ class KanbanSystem(System):
 		self.add_listener(EVENT_CLEAR, self.__on_clear)
 		self.add_listener(EVENT_COLUMN_MOVE, self.__on_column_move)
 		self.add_listener(EVENT_COLUMN_RENAME, self.__on_column_rename)
+		self.add_listener(EVENT_CURRENT, self.__on_current)
+		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
 		self.__board = Board(self.env)
 		await self.env.event_bus.dispatch_async(
@@ -226,6 +234,32 @@ class KanbanSystem(System):
 			entity.add_component(DateEC(value))
 		self.__changed()
 		self.__announce()
+
+	async def __on_current(self, card_id: str):
+		known = current_card(self.env.data_storage)
+		if known is not None:
+			known.remove_component(KanbanCurrentEC)
+
+		entity = self.__find(card_id) if card_id else None
+		if entity is not None and entity is not known and entity.has_component(KanbanTaskEC):
+			entity.add_component(KanbanCurrentEC())
+		self.__changed()
+
+	async def __on_log_time(self, measured: dict):
+		entity = current_card(self.env.data_storage)
+		if entity is None or not entity.has_component(NoteEC):
+			return
+
+		column = self.__column(entity.get_component(KanbanTaskEC).column)
+		log_data(
+			self.env.event_bus,
+			measured,
+			TYPE_NAME,
+			entity.get_component(NoteEC).title,
+			ref=entity.get_component(StaticIdEC).static_id,
+			tags=[tag["name"] for tag in tags_of(self.env.data_storage, entity)],
+			data={"column": column.get_component(KanbanColumnEC).name if column is not None else ""},
+		)
 
 	def __role(self, role: str) -> Optional[Entity]:
 		return next((entity for entity in self.__columns()
