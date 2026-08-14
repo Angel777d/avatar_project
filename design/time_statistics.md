@@ -93,6 +93,7 @@ A role *is* the identity of a structural column, so there is no separate id to k
 - **A role column is never removed, and comes back if it goes missing**, with a fresh generated id. The board is seeded whole only when it is empty; a plain column like *Do next* is seeded once and stays deleted if it is deleted.
 - **A card pointing at a column that no longer exists goes to the backlog**, so a vanished column cannot take its cards with it. That is what makes the recreated id harmless: nothing keeps a reference to the old one.
 - The page marks the `in_progress` column and says so in its tooltip; nothing on the board sets or moves a role.
+- **A name is cosmetic, a role is not.** Any column can be renamed, plain ones can be added and removed, and removing one sends its cards to the backlog rather than deleting them. A role column refuses to be removed, so the board can never end up without somewhere for time, work or leftovers to go.
 
 ## Page
 

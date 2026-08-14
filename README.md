@@ -7,7 +7,7 @@ Right-click the avatar for the menu; everything else opens from there.
 
 - **avatar** — the character itself: speaks in bubbles, fills silence with idle phrases, draws a ring for whatever timer is running, and carries the menu every other plugin contributes to.
 - **shell** — the tabbed window every other plugin's page appears in.
-- **kanban** — a board of columns with drag and drop, an optional deadline per card, and one column whose cards the tracked time is logged against.
+- **kanban** — a board with drag and drop and an optional deadline per card. Columns can be added, renamed and removed, except the three the board is built on; the cards in the in-progress one are what tracked time is logged against.
 - **calendar** — the current month, notes on a day, and the deadlines other plugins set.
 - **pomodoro** — focus and break timer with its own durations, a count of what ran in a row, and sets that chain one after another.
 - **stats** — where the time went: a stopwatch, whatever the other plugins report, and totals by day, task, plugin and tag.

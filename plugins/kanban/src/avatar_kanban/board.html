@@ -65,6 +65,30 @@
   .column.moving { opacity: .45; }
   .column.progress h2 { color: var(--accent); }
   .column.progress h2 .mark { padding-right: 6px; }
+  .column h2 .drop-column {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 0 0 8px;
+    opacity: 0;
+  }
+  .column:hover h2 .drop-column { opacity: .6; }
+  .column h2 .drop-column:hover { opacity: 1; color: #e2686d; }
+  .column h2 .tail { display: flex; align-items: center; }
+  #new-column {
+    flex: 0 0 200px;
+    background: none;
+    border: 1px dashed var(--panel-edge);
+    border-radius: 10px;
+    color: var(--muted);
+    padding: 12px 14px;
+    font: inherit;
+    outline: none;
+  }
+  #new-column:focus { border-color: var(--accent); color: var(--text); }
   .column h2 {
     cursor: grab;
     font-size: 12px;
@@ -323,7 +347,24 @@ function columnNode(column) {
     label.prepend(mark);
   }
 
-  head.append(label, count);
+  const tail = document.createElement("span");
+  tail.className = "tail";
+  tail.appendChild(count);
+
+  if (!column.role) {
+    const drop = document.createElement("button");
+    drop.className = "drop-column";
+    drop.textContent = "×";
+    drop.title = "remove this column — its cards go back to the backlog";
+    drop.addEventListener("click", (event) => {
+      event.stopPropagation();
+      board.delete_column(column.id);
+    });
+    drop.addEventListener("mousedown", (event) => event.stopPropagation());
+    tail.appendChild(drop);
+  }
+
+  head.append(label, tail);
   head.draggable = true;
   head.title = working
     ? "time is logged against every card here — drag to reorder, double click to rename"
@@ -374,8 +415,28 @@ function columnNode(column) {
 function render(data) {
   latest = data;
   const root = document.getElementById("board");
+  const typed = document.getElementById("new-column");
+  const pending = typed && document.activeElement === typed ? typed.value : null;
   root.textContent = "";
   data.columns.forEach((column) => root.appendChild(columnNode(column)));
+  root.appendChild(adderNode(pending));
+}
+
+function adderNode(pending) {
+  const input = document.createElement("input");
+  input.id = "new-column";
+  input.placeholder = "Add a column…";
+  input.maxLength = 40;
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || !input.value.trim()) return;
+    board.add_column(input.value);
+    input.value = "";
+  });
+  if (pending !== null) {
+    input.value = pending;
+    setTimeout(() => input.focus(), 0);
+  }
+  return input;
 }
 
 function wireBoard() {

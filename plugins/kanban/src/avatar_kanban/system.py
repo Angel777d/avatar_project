@@ -19,6 +19,8 @@ from avatar_kanban.components import (
 from avatar_kanban.window import (
 	EVENT_ADD,
 	EVENT_CLEAR,
+	EVENT_COLUMN_ADD,
+	EVENT_COLUMN_DELETE,
 	EVENT_COLUMN_MOVE,
 	EVENT_COLUMN_RENAME,
 	EVENT_DEADLINE,
@@ -60,6 +62,8 @@ class KanbanSystem(System):
 		self.add_listener(EVENT_CLEAR, self.__on_clear)
 		self.add_listener(EVENT_COLUMN_MOVE, self.__on_column_move)
 		self.add_listener(EVENT_COLUMN_RENAME, self.__on_column_rename)
+		self.add_listener(EVENT_COLUMN_ADD, self.__on_column_add)
+		self.add_listener(EVENT_COLUMN_DELETE, self.__on_column_delete)
 		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
 		self.__board = Board(self.env)
@@ -152,6 +156,30 @@ class KanbanSystem(System):
 		if not name or entity is None:
 			return
 		entity.get_component(KanbanColumnEC).name = name
+		self.__changed()
+
+	async def __on_column_add(self, name: str):
+		name = name.strip()
+		if not name:
+			return
+		self.__create_column(name)
+		self.__changed()
+
+	async def __on_column_delete(self, column_id: str):
+		entity = self.__column(column_id)
+		backlog = self.__role(ROLE_BACKLOG)
+		if entity is None or backlog is None or entity.get_component(KanbanColumnEC).role:
+			return
+
+		home = backlog.get_component(StaticIdEC).static_id
+		cards = self.__column_entities(column_id)
+		self.env.data_storage.remove_entity(entity)
+
+		for card in cards:
+			card.get_component(KanbanTaskEC).column = home
+		self.__reindex(home)
+		for index, column in enumerate(self.__columns()):
+			column.get_component(KanbanColumnEC).position = index
 		self.__changed()
 
 	def __create(self, column_id: str, title: str) -> Entity:

@@ -17,6 +17,8 @@ EVENT_ADD = "request.kanban.add"
 EVENT_DELETE = "request.kanban.delete"
 EVENT_DEADLINE = "request.kanban.deadline"
 EVENT_EDIT = "request.kanban.edit"
+EVENT_COLUMN_ADD = "request.kanban.column.add"
+EVENT_COLUMN_DELETE = "request.kanban.column.delete"
 EVENT_COLUMN_MOVE = "request.kanban.column.move"
 EVENT_COLUMN_RENAME = "request.kanban.column.rename"
 EVENT_RESET = "request.kanban.reset"
@@ -103,6 +105,14 @@ class Board(QObject):
 	@Slot(str, str)
 	def rename_column(self, column_id: str, name: str):
 		self.__env.event_bus.dispatch(EVENT_COLUMN_RENAME, column_id, name)
+
+	@Slot(str)
+	def add_column(self, name: str):
+		self.__env.event_bus.dispatch(EVENT_COLUMN_ADD, name)
+
+	@Slot(str)
+	def delete_column(self, column_id: str):
+		self.__env.event_bus.dispatch(EVENT_COLUMN_DELETE, column_id)
 
 
 	@Slot()
