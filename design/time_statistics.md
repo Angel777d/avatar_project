@@ -81,7 +81,7 @@ It closes on `request.app.close`, not in `stop()`: the application saves *before
 | --- | --- |
 | `avatar.api` | two event names |
 | `avatar_pomodoro` | report the segment that just ended — a phase completing, a pause, a reset, `request.app.close` — `duration` measured rather than planned, so a paused gap and a skip cannot count as focus. `__record` still adds `settings.work` to `PomodoroLogEC`, which counts pomodoros rather than seconds, and stays as it is |
-| `avatar_kanban` | `KanbanCurrentEC` marks the card being worked on — one at a time, persisted, toggled by the dot on the card — and a `request.log.time` listener answers with its title, id, tags and column name. Separately: columns stop minting `StaticIdEC("todo")` — a uuid like everything else, with the seed name moved into `KanbanColumnEC.key` |
+| `avatar_kanban` | one column carries `ROLE_PROGRESS`, marked by the dot in its header, and **every card in it** claims the span — one record each, same span id, `data.shared` saying how many split it. No separate notion of a current card: moving a card in and out of that column is the whole gesture, and how many sit there at once is the user's business. Structural columns — backlog, done — refuse the role. Separately: columns stop minting `StaticIdEC("todo")` — a uuid like everything else, with the seed name moved into `KanbanColumnEC.key` |
 | `avatar_calendar` | a `request.log.time` listener answering with the dated note whose `begin`/`end` overlap the span the most, **clipped to the overlap** — a 20 minute span reaching 5 minutes into a meeting is 5 minutes of that meeting. The record keeps the span id, so the clipped view and the full one stay tied; a note without both times is not an event and never answers |
 | `plugins/stats` | new — stopwatch, log, page. `pip install -e plugins/stats` or discovery never sees it |
 
@@ -95,5 +95,7 @@ Tab `Time`, filling the window.
 - the raw log, newest first, one row deletable.
 
 ## Overlap
+
+Several cards sitting in the in-progress column all claim the same span, so a kanban total counts that span once per card. Nothing is split: dividing by three would invent a precision nobody measured, and the record carries `shared` so a reader can divide, group by `span`, or show the cards as the alternatives they are.
 
 Two sources running at once are two spans, and a plugin answering both logs the overlap twice inside its own type. That is left alone. Nothing clips on write and nothing is refused: every span carries its own id and its own interval, so a reader that cares can spot the collision — sort a day's records by `started`, and any interval reaching past the next one's start is an overlap — and the page decides whether to show the raw sum or the merged one. Clipping at write time would throw away the only evidence that it happened.

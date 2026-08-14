@@ -12,8 +12,8 @@ from avatar_kanban.components import (
 	DEFAULT_COLUMNS,
 	ROLE_BACKLOG,
 	ROLE_DONE,
+	ROLE_PROGRESS,
 	KanbanColumnEC,
-	KanbanCurrentEC,
 	KanbanTaskEC,
 )
 from avatar_kanban.migrations import COLUMNS as COLUMNS_SHAPE, generated_ids
@@ -21,8 +21,8 @@ from avatar_kanban.window import (
 	EVENT_ADD,
 	EVENT_CLEAR,
 	EVENT_COLUMN_MOVE,
+	EVENT_COLUMN_PROGRESS,
 	EVENT_COLUMN_RENAME,
-	EVENT_CURRENT,
 	EVENT_DEADLINE,
 	EVENT_DELETE,
 	EVENT_EDIT,
@@ -31,7 +31,6 @@ from avatar_kanban.window import (
 	EVENT_RESET,
 	PAGE,
 	Board,
-	current_card,
 )
 
 MENU_ITEM = "Open kanban"
@@ -48,7 +47,6 @@ class KanbanSystem(System):
 	async def start(self):
 		self.env.registry.register(KanbanTaskEC, "kanban_task")
 		self.env.registry.register(KanbanColumnEC, COLUMNS_SHAPE)
-		self.env.registry.register(KanbanCurrentEC, "kanban_current")
 		self.env.migrations.add(COLUMNS_SHAPE, 1, generated_ids)
 
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
@@ -65,7 +63,7 @@ class KanbanSystem(System):
 		self.add_listener(EVENT_CLEAR, self.__on_clear)
 		self.add_listener(EVENT_COLUMN_MOVE, self.__on_column_move)
 		self.add_listener(EVENT_COLUMN_RENAME, self.__on_column_rename)
-		self.add_listener(EVENT_CURRENT, self.__on_current)
+		self.add_listener(EVENT_COLUMN_PROGRESS, self.__on_column_progress)
 		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
 		self.__board = Board(self.env)
@@ -235,31 +233,44 @@ class KanbanSystem(System):
 		self.__changed()
 		self.__announce()
 
-	async def __on_current(self, card_id: str):
-		known = current_card(self.env.data_storage)
-		if known is not None:
-			known.remove_component(KanbanCurrentEC)
+	async def __on_column_progress(self, column_id: str):
+		entity = self.__column(column_id) if column_id else None
+		if entity is not None:
+			role = entity.get_component(KanbanColumnEC).role
+			if role and role != ROLE_PROGRESS:
+				return
 
-		entity = self.__find(card_id) if card_id else None
-		if entity is not None and entity is not known and entity.has_component(KanbanTaskEC):
-			entity.add_component(KanbanCurrentEC())
+		known = self.__role(ROLE_PROGRESS)
+		if known is not None:
+			known.get_component(KanbanColumnEC).role = ""
+		if entity is not None and entity is not known:
+			entity.get_component(KanbanColumnEC).role = ROLE_PROGRESS
 		self.__changed()
 
 	async def __on_log_time(self, measured: dict):
-		entity = current_card(self.env.data_storage)
-		if entity is None or not entity.has_component(NoteEC):
+		column = self.__role(ROLE_PROGRESS)
+		if column is None:
 			return
 
-		column = self.__column(entity.get_component(KanbanTaskEC).column)
-		log_data(
-			self.env.event_bus,
-			measured,
-			TYPE_NAME,
-			entity.get_component(NoteEC).title,
-			ref=entity.get_component(StaticIdEC).static_id,
-			tags=[tag["name"] for tag in tags_of(self.env.data_storage, entity)],
-			data={"column": column.get_component(KanbanColumnEC).name if column is not None else ""},
-		)
+		cards = [
+			entity for entity in
+			self.__column_entities(column.get_component(StaticIdEC).static_id)
+			if entity.has_component(NoteEC)
+		]
+		if not cards:
+			return
+
+		name = column.get_component(KanbanColumnEC).name
+		for entity in cards:
+			log_data(
+				self.env.event_bus,
+				measured,
+				TYPE_NAME,
+				entity.get_component(NoteEC).title,
+				ref=entity.get_component(StaticIdEC).static_id,
+				tags=[tag["name"] for tag in tags_of(self.env.data_storage, entity)],
+				data={"column": name, "shared": len(cards)},
+			)
 
 	def __role(self, role: str) -> Optional[Entity]:
 		return next((entity for entity in self.__columns()

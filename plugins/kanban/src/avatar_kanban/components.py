@@ -1,15 +1,13 @@
-from datetime import datetime
-from typing import Optional
-
 from avatar_api import EntityComponent
 
 ROLE_BACKLOG = "backlog"
 ROLE_DONE = "done"
+ROLE_PROGRESS = "in_progress"
 
 DEFAULT_COLUMNS = (
 	("todo", "To do", ROLE_BACKLOG),
 	("next", "Do next", ""),
-	("doing", "In Progress", ""),
+	("doing", "In Progress", ROLE_PROGRESS),
 	("done", "Done", ROLE_DONE),
 )
 
@@ -28,9 +26,3 @@ class KanbanTaskEC(EntityComponent):
 		super().__init__()
 		self.column: str = column
 		self.position: int = position
-
-
-class KanbanCurrentEC(EntityComponent):
-	def __init__(self, since: Optional[datetime] = None):
-		super().__init__()
-		self.since: datetime = since or datetime.now()
