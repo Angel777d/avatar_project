@@ -64,18 +64,7 @@
   .column.drop { border-color: var(--accent); }
   .column.moving { opacity: .45; }
   .column.progress h2 { color: var(--accent); }
-  .column h2 .mark {
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    font: inherit;
-    line-height: 1;
-    padding: 0 6px 0 0;
-    opacity: .45;
-  }
-  .column h2 .mark:hover { opacity: 1; }
-  .column.progress h2 .mark { opacity: 1; }
+  .column.progress h2 .mark { padding-right: 6px; }
   .column h2 {
     cursor: grab;
     font-size: 12px;
@@ -327,23 +316,18 @@ function columnNode(column) {
   const count = document.createElement("span");
   count.textContent = column.cards.length;
 
-  if (working || !column.role) {
-    const mark = document.createElement("button");
+  if (working) {
+    const mark = document.createElement("span");
     mark.className = "mark";
-    mark.textContent = working ? "◉" : "○";
-    mark.title = working
-      ? "stop logging time against the cards here"
-      : "log time against every card in this column";
-    mark.addEventListener("click", (event) => {
-      event.stopPropagation();
-      board.mark_progress(working ? "" : column.id);
-    });
+    mark.textContent = "◉";
     label.prepend(mark);
   }
 
   head.append(label, count);
   head.draggable = true;
-  head.title = "drag to reorder, double click to rename";
+  head.title = working
+    ? "time is logged against every card here — drag to reorder, double click to rename"
+    : "drag to reorder, double click to rename";
   label.addEventListener("dblclick", () => renameColumn(head, label, column));
   head.addEventListener("dragstart", (event) => {
     draggedColumn = column.id;

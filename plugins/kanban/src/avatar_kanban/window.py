@@ -19,7 +19,6 @@ EVENT_DEADLINE = "request.kanban.deadline"
 EVENT_EDIT = "request.kanban.edit"
 EVENT_COLUMN_MOVE = "request.kanban.column.move"
 EVENT_COLUMN_RENAME = "request.kanban.column.rename"
-EVENT_COLUMN_PROGRESS = "request.kanban.column.progress"
 EVENT_RESET = "request.kanban.reset"
 EVENT_CLEAR = "request.kanban.clear"
 
@@ -105,9 +104,6 @@ class Board(QObject):
 	def rename_column(self, column_id: str, name: str):
 		self.__env.event_bus.dispatch(EVENT_COLUMN_RENAME, column_id, name)
 
-	@Slot(str)
-	def mark_progress(self, column_id: str):
-		self.__env.event_bus.dispatch(EVENT_COLUMN_PROGRESS, column_id)
 
 	@Slot()
 	def reset(self):

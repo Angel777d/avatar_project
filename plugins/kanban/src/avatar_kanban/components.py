@@ -5,20 +5,19 @@ ROLE_DONE = "done"
 ROLE_PROGRESS = "in_progress"
 
 DEFAULT_COLUMNS = (
-	("todo", "To do", ROLE_BACKLOG),
-	("next", "Do next", ""),
-	("doing", "In Progress", ROLE_PROGRESS),
-	("done", "Done", ROLE_DONE),
+	("To do", ROLE_BACKLOG),
+	("Do next", ""),
+	("In Progress", ROLE_PROGRESS),
+	("Done", ROLE_DONE),
 )
 
 
 class KanbanColumnEC(EntityComponent):
-	def __init__(self, name: str = "", position: int = 0, role: str = "", key: str = ""):
+	def __init__(self, name: str = "", position: int = 0, role: str = ""):
 		super().__init__()
 		self.name: str = name
 		self.position: int = position
 		self.role: str = role
-		self.key: str = key
 
 
 class KanbanTaskEC(EntityComponent):

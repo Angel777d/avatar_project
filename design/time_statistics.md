@@ -81,9 +81,18 @@ It closes on `request.app.close`, not in `stop()`: the application saves *before
 | --- | --- |
 | `avatar.api` | two event names |
 | `avatar_pomodoro` | report the segment that just ended — a phase completing, a pause, a reset, `request.app.close` — `duration` measured rather than planned, so a paused gap and a skip cannot count as focus. `__record` still adds `settings.work` to `PomodoroLogEC`, which counts pomodoros rather than seconds, and stays as it is |
-| `avatar_kanban` | one column carries `ROLE_PROGRESS`, marked by the dot in its header, and **every card in it** claims the span — one record each, same span id, `data.shared` saying how many split it. No separate notion of a current card: moving a card in and out of that column is the whole gesture, and how many sit there at once is the user's business. Structural columns — backlog, done — refuse the role. Separately: columns stop minting `StaticIdEC("todo")` — a uuid like everything else, with the seed name moved into `KanbanColumnEC.key` |
+| `avatar_kanban` | **every card in the `in_progress` column** claims the span — one record each, same span id, `data.shared` saying how many split it. Moving a card in and out of that column is the whole gesture; how many sit there at once is the user's business. See the column rules below |
 | `avatar_calendar` | a `request.log.time` listener answering with the dated note whose `begin`/`end` overlap the span the most, **clipped to the overlap** — a 20 minute span reaching 5 minutes into a meeting is 5 minutes of that meeting. The record keeps the span id, so the clipped view and the full one stay tied; a note without both times is not an event and never answers |
 | `plugins/stats` | new — stopwatch, log, page. `pip install -e plugins/stats` or discovery never sees it |
+
+## Kanban columns
+
+A role *is* the identity of a structural column, so there is no separate id to keep and nothing to migrate.
+
+- **Exactly one column per role** — `backlog`, `in_progress`, `done` — and a role never moves. A second claimant found in the database loses it.
+- **A role column is never removed, and comes back if it goes missing**, with a fresh generated id. The board is seeded whole only when it is empty; a plain column like *Do next* is seeded once and stays deleted if it is deleted.
+- **A card pointing at a column that no longer exists goes to the backlog**, so a vanished column cannot take its cards with it. That is what makes the recreated id harmless: nothing keeps a reference to the old one.
+- The page marks the `in_progress` column and says so in its tooltip; nothing on the board sets or moves a role.
 
 ## Page
 

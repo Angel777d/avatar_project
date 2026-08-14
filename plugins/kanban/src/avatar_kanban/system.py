@@ -16,12 +16,10 @@ from avatar_kanban.components import (
 	KanbanColumnEC,
 	KanbanTaskEC,
 )
-from avatar_kanban.migrations import COLUMNS as COLUMNS_SHAPE, generated_ids
 from avatar_kanban.window import (
 	EVENT_ADD,
 	EVENT_CLEAR,
 	EVENT_COLUMN_MOVE,
-	EVENT_COLUMN_PROGRESS,
 	EVENT_COLUMN_RENAME,
 	EVENT_DEADLINE,
 	EVENT_DELETE,
@@ -46,8 +44,7 @@ class KanbanSystem(System):
 
 	async def start(self):
 		self.env.registry.register(KanbanTaskEC, "kanban_task")
-		self.env.registry.register(KanbanColumnEC, COLUMNS_SHAPE)
-		self.env.migrations.add(COLUMNS_SHAPE, 1, generated_ids)
+		self.env.registry.register(KanbanColumnEC, "kanban_column")
 
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 
@@ -63,7 +60,6 @@ class KanbanSystem(System):
 		self.add_listener(EVENT_CLEAR, self.__on_clear)
 		self.add_listener(EVENT_COLUMN_MOVE, self.__on_column_move)
 		self.add_listener(EVENT_COLUMN_RENAME, self.__on_column_rename)
-		self.add_listener(EVENT_COLUMN_PROGRESS, self.__on_column_progress)
 		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
 		self.__board = Board(self.env)
@@ -79,23 +75,54 @@ class KanbanSystem(System):
 
 	async def __on_restored(self, restored: int):
 		self.__ensure_columns()
+		self.__adopt_orphans()
+
+	def __create_column(self, name: str, role: str = "") -> Entity:
+		entity = self.env.data_storage.create_entity()
+		entity.add_component(StaticIdEC())
+		entity.add_component(KanbanColumnEC(name, len(self.__columns()), role))
+		return entity
 
 	def __ensure_columns(self):
-		known = {
-			entity.get_component(KanbanColumnEC).key: entity for entity in self.__columns()
-		}
-		position = len(known)
-		for key, name, role in DEFAULT_COLUMNS:
-			entity = known.get(key)
-			if entity is None:
-				entity = self.env.data_storage.create_entity()
-				entity.add_component(StaticIdEC())
-				entity.add_component(KanbanColumnEC(name, position, role, key))
-				position += 1
-				continue
+		if not self.__columns():
+			for name, role in DEFAULT_COLUMNS:
+				self.__create_column(name, role)
+			return
+
+		taken = set()
+		for entity in self.__columns():
 			column = entity.get_component(KanbanColumnEC)
-			if role and not column.role:
-				column.role = role
+			if not column.role:
+				continue
+			if column.role in taken:
+				column.role = ""
+			else:
+				taken.add(column.role)
+
+		for name, role in DEFAULT_COLUMNS:
+			if role and role not in taken:
+				self.__create_column(name, role)
+
+		for index, entity in enumerate(self.__columns()):
+			entity.get_component(KanbanColumnEC).position = index
+
+	def __adopt_orphans(self):
+		backlog = self.__role(ROLE_BACKLOG)
+		if backlog is None:
+			return
+
+		home = backlog.get_component(StaticIdEC).static_id
+		known = set(self.__column_ids())
+		orphans = [
+			entity for entity in self.env.data_storage.get_collection(KanbanTaskEC)
+			if entity.get_component(KanbanTaskEC).column not in known
+		]
+		if not orphans:
+			return
+
+		for entity in orphans:
+			entity.get_component(KanbanTaskEC).column = home
+		self.__reindex(home)
 
 	def __columns(self) -> List[Entity]:
 		entities = list(self.env.data_storage.get_collection(KanbanColumnEC))
@@ -232,20 +259,6 @@ class KanbanSystem(System):
 			entity.add_component(DateEC(value))
 		self.__changed()
 		self.__announce()
-
-	async def __on_column_progress(self, column_id: str):
-		entity = self.__column(column_id) if column_id else None
-		if entity is not None:
-			role = entity.get_component(KanbanColumnEC).role
-			if role and role != ROLE_PROGRESS:
-				return
-
-		known = self.__role(ROLE_PROGRESS)
-		if known is not None:
-			known.get_component(KanbanColumnEC).role = ""
-		if entity is not None and entity is not known:
-			entity.get_component(KanbanColumnEC).role = ROLE_PROGRESS
-		self.__changed()
 
 	async def __on_log_time(self, measured: dict):
 		column = self.__role(ROLE_PROGRESS)
