@@ -6,7 +6,7 @@ from datetime import date
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_api.tags import apply_tags, names_from, tags_of
-from avatar_api.timelog import log_data
+from avatar_api.timelog import CREATED, DONE, UNDONE, log_data, log_event
 
 from avatar_kanban.components import (
 	DEFAULT_COLUMNS,
@@ -187,7 +187,28 @@ class KanbanSystem(System):
 		entity.add_component(StaticIdEC())
 		entity.add_component(NoteEC(title))
 		entity.add_component(KanbanTaskEC(column_id, self.__column_size(column_id)))
+		self.__log_event(entity, CREATED)
 		return entity
+
+	def __log_event(self, entity: Entity, verb: str):
+		column = self.__column(entity.get_component(KanbanTaskEC).column)
+		deadline = entity.get_component(DateEC).value if entity.has_component(DateEC) else None
+		log_event(
+			self.env.event_bus,
+			TYPE_NAME,
+			verb,
+			label=entity.get_component(NoteEC).title,
+			ref=entity.get_component(StaticIdEC).static_id,
+			tags=[tag["name"] for tag in tags_of(self.env.data_storage, entity)],
+			data={
+				"column": column.get_component(KanbanColumnEC).name if column is not None else "",
+				"deadline": deadline.isoformat() if deadline is not None else "",
+			},
+		)
+
+	def __role_of(self, column_id: str) -> str:
+		entity = self.__column(column_id)
+		return entity.get_component(KanbanColumnEC).role if entity is not None else ""
 
 	def __column_size(self, column_id: str) -> int:
 		return len(self.__column_entities(column_id))
@@ -227,7 +248,15 @@ class KanbanSystem(System):
 		self.__reindex(column_id, entity, position)
 		if source != column_id:
 			self.__reindex(source)
+			self.__crossed_done(entity, source, column_id)
 		self.__changed()
+
+	def __crossed_done(self, entity: Entity, source: str, target: str):
+		was = self.__role_of(source) == ROLE_DONE
+		now = self.__role_of(target) == ROLE_DONE
+		if was == now or not entity.has_component(NoteEC):
+			return
+		self.__log_event(entity, DONE if now else UNDONE)
 
 	async def __on_add(self, column_id: str, title: str):
 		title = title.strip()

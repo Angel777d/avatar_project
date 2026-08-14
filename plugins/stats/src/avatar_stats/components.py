@@ -35,6 +35,25 @@ class LogEntryEC(EntityComponent):
 		return self.started + timedelta(seconds=self.duration)
 
 
+class LogEventEC(EntityComponent):
+	def __init__(self,
+	             when: Optional[datetime] = None,
+	             type: str = "",
+	             event: str = "",
+	             label: str = "",
+	             ref: str = "",
+	             tags: Optional[List[str]] = None,
+	             data: Optional[Dict] = None):
+		super().__init__()
+		self.when: datetime = when or datetime.now()
+		self.type: str = type
+		self.event: str = event
+		self.label: str = label
+		self.ref: str = ref
+		self.tags: List[str] = list(tags or ())
+		self.data: dict = dict(data or {})
+
+
 class StopwatchEC(EntityComponent):
 	def __init__(self, label: str = "", started: Optional[datetime] = None, span: str = ""):
 		super().__init__()

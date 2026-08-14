@@ -155,6 +155,9 @@
     <div id="totals" style="margin-top:10px">
       <span>today <b id="today">0m</b></span>
       <span>range <b id="total">0m</b></span>
+      <span>created <b id="created">0</b></span>
+      <span>done <b id="done">0</b></span>
+      <span>rate <b id="rate">0%</b></span>
       <span id="split"></span>
     </div>
   </div>
@@ -298,6 +301,9 @@ function render(data) {
 
   document.getElementById("today").textContent = span(data.today);
   document.getElementById("total").textContent = span(data.total);
+  document.getElementById("created").textContent = data.created;
+  document.getElementById("done").textContent = data.done + (data.undone ? ` (−${data.undone})` : "");
+  document.getElementById("rate").textContent = `${data.rate}%`;
   document.getElementById("split").textContent = data.by_source
     .map((item) => `${item.name} ${span(item.seconds)}`).join(" · ");
 

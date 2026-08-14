@@ -7,6 +7,7 @@ from avatar_api.menu import add_menu_item
 from avatar_api.timelog import (
 	DATA,
 	DURATION,
+	EVENT,
 	LABEL,
 	REF,
 	SOURCE,
@@ -14,12 +15,13 @@ from avatar_api.timelog import (
 	STARTED,
 	TAGS,
 	TYPE,
+	WHEN,
 	log_data,
 	log_time,
 	new_span,
 )
 
-from avatar_stats.components import LogEntryEC, StopwatchEC
+from avatar_stats.components import LogEntryEC, LogEventEC, StopwatchEC
 from avatar_stats.window import (
 	EVENT_ADD,
 	EVENT_FORGET,
@@ -48,6 +50,7 @@ class StatsSystem(System):
 
 	async def start(self):
 		self.env.registry.register(LogEntryEC, "log_entry")
+		self.env.registry.register(LogEventEC, "log_event")
 
 		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
 
@@ -57,6 +60,7 @@ class StatsSystem(System):
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_FORGET, self.__on_forget)
 		self.add_listener(events.ACTION_LOG_DATA, self.__on_data)
+		self.add_listener(events.ACTION_LOG_EVENT, self.__on_event)
 		self.add_listener(events.REQUEST_APP_CLOSE, self.__on_app_close)
 
 		self.__bridge = StatsBridge(self.env)
@@ -122,9 +126,28 @@ class StatsSystem(System):
 	async def __on_forget(self, entry_id: str):
 		entity = self.env.data_storage.get_collection(StaticIdEC).find(
 			StaticIdEC.make_hash(entry_id))
-		if entity is None or not entity.has_component(LogEntryEC):
+		if entity is None or not (entity.has_component(LogEntryEC)
+		                          or entity.has_component(LogEventEC)):
 			return
 		self.env.data_storage.remove_entity(entity)
+		self.__changed()
+
+	async def __on_event(self, moment: dict):
+		verb = str(moment.get(EVENT) or "").strip()
+		if not verb:
+			return
+
+		entity = self.env.data_storage.create_entity()
+		entity.add_component(StaticIdEC())
+		entity.add_component(LogEventEC(
+			when=moment.get(WHEN) or datetime.now(),
+			type=moment.get(TYPE) or UNKNOWN,
+			event=verb,
+			label=moment.get(LABEL, ""),
+			ref=moment.get(REF, ""),
+			tags=moment.get(TAGS) or (),
+			data=moment.get(DATA) or {},
+		))
 		self.__changed()
 
 	async def __on_data(self, record: dict):

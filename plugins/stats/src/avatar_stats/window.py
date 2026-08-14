@@ -8,8 +8,15 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from avatar_api import DataStorage
 from avatar_api.components import StaticIdEC
+from avatar_api.timelog import CREATED, DONE, UNDONE
 
-from avatar_stats.components import DEFAULT_RANGE, MAX_ENTRIES, LogEntryEC, StopwatchEC
+from avatar_stats.components import (
+	DEFAULT_RANGE,
+	MAX_ENTRIES,
+	LogEntryEC,
+	LogEventEC,
+	StopwatchEC,
+)
 
 PAGE = Path(__file__).resolve().parent / "time.html"
 
@@ -23,6 +30,12 @@ EVENT_FORGET = "request.stats.forget"
 def entries(data_storage: DataStorage) -> List:
 	found = list(data_storage.get_collection(LogEntryEC))
 	found.sort(key=lambda entity: entity.get_component(LogEntryEC).started, reverse=True)
+	return found
+
+
+def moments(data_storage: DataStorage) -> List:
+	found = list(data_storage.get_collection(LogEventEC))
+	found.sort(key=lambda entity: entity.get_component(LogEventEC).when, reverse=True)
 	return found
 
 
@@ -86,8 +99,35 @@ def build_snapshot(data_storage: DataStorage, days: int = DEFAULT_RANGE) -> dict
 		day = since + timedelta(days=step)
 		series.append({"day": day.isoformat(), "seconds": int(by_day.get(day.isoformat(), 0.0))})
 
+	counted = {CREATED: 0, DONE: 0, UNDONE: 0}
+	happened = []
+	for entity in moments(data_storage):
+		moment = entity.get_component(LogEventEC)
+		if moment.when.date() < since:
+			continue
+		if moment.event in counted:
+			counted[moment.event] += 1
+		if len(happened) < MAX_ENTRIES:
+			happened.append({
+				"id": entity.get_component(StaticIdEC).static_id,
+				"day": moment.when.date().isoformat(),
+				"time": moment.when.strftime("%H:%M"),
+				"type": moment.type,
+				"event": moment.event,
+				"label": moment.label,
+				"tags": moment.tags,
+			})
+
+	finished = counted[DONE] - counted[UNDONE]
+	born = counted[CREATED]
+
 	running = stopwatch(data_storage)
 	return {
+		"created": born,
+		"done": counted[DONE],
+		"undone": counted[UNDONE],
+		"rate": int(round(100.0 * max(0, finished) / born)) if born else 0,
+		"moments": happened,
 		"days": days,
 		"running": running is not None,
 		"label": running.label if running is not None else "",

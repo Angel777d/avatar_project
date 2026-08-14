@@ -4,7 +4,7 @@ from typing import Iterable, Optional
 
 from angelovich.core.Dispatcher import Dispatcher
 
-from avatar_api.events import ACTION_LOG_DATA, REQUEST_LOG_TIME
+from avatar_api.events import ACTION_LOG_DATA, ACTION_LOG_EVENT, REQUEST_LOG_TIME
 
 SPAN = "span"
 STARTED = "started"
@@ -15,6 +15,13 @@ LABEL = "label"
 REF = "ref"
 TAGS = "tags"
 DATA = "data"
+
+WHEN = "when"
+EVENT = "event"
+
+CREATED = "created"
+DONE = "done"
+UNDONE = "undone"
 
 
 def new_span() -> str:
@@ -60,3 +67,24 @@ def log_data(event_bus: Dispatcher,
 	}
 	event_bus.dispatch(ACTION_LOG_DATA, record)
 	return record
+
+
+def log_event(event_bus: Dispatcher,
+              type: str,
+              event: str,
+              label: str = "",
+              ref: str = "",
+              when: Optional[datetime] = None,
+              tags: Iterable[str] = (),
+              data: Optional[dict] = None) -> dict:
+	moment = {
+		WHEN: when or datetime.now(),
+		TYPE: type,
+		EVENT: event,
+		LABEL: label,
+		REF: ref,
+		TAGS: list(tags),
+		DATA: dict(data or {}),
+	}
+	event_bus.dispatch(ACTION_LOG_EVENT, moment)
+	return moment

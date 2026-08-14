@@ -12,12 +12,21 @@ Both names live in `avatar_api.events` — the only api change. No new api compo
 | --- | --- | --- |
 | `request.log.time` | whatever measured the span: a pomodoro work segment, the manual stopwatch | `{span, started, duration, source}` |
 | `action.log.data` | whatever can name it: kanban when a card is current, calendar when an event covers the span, pomodoro for its own runs | the record below |
+| `action.log.event` | whatever watched something happen: kanban when a card is added or crosses the done column | `{when, type, event, label, ref, tags, data}` |
 
 One **dict** per dispatch rather than positional arguments, so a field added later cannot break an existing listener.
 
 **A source also records itself.** Pomodoro dispatches `request.log.time` *and* its own `action.log.data` (`type: "pomodoro"`), so a run is counted even when no card was current. The stopwatch does the same. Answering a `request.log.time` is optional; ignoring it costs the answerer nothing.
 
 A source may also record something it will not offer for attribution: a pomodoro **break** announces only `action.log.data`, because the day's break time is worth knowing and no card was ever worked on during it. Anything under a second is dropped.
+
+## Spans and moments
+
+A span is time that passed; a **moment** is something that happened at an instant, stored in its own component and its own table. Same shape minus `span`, `duration` and `source`, plus `event` — the verb, `created`, `done` or `undone`, whose names live in `avatar_api.timelog` so the sink is not reading strings the source invented.
+
+Kanban is the only speaker: `created` when a card is made, and `done`/`undone` only when it crosses into or out of the column carrying `ROLE_DONE` — moving between the other columns is not news. `data.deadline` is the deadline the card carried *at that moment*, which is what makes "finished late" answerable later without asking the card, and empty when it had none.
+
+The point is the same as everywhere here: `avatar_stats` counts what was finished without knowing what a card, a column or a board is.
 
 ## The record
 

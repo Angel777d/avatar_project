@@ -7,6 +7,7 @@ REQUEST_TIMER_CANCEL = "request.timer.cancel"
 REQUEST_LOG_TIME = "request.log.time"
 
 ACTION_LOG_DATA = "action.log.data"
+ACTION_LOG_EVENT = "action.log.event"
 ACTION_NOTIFICATION_SHOWN = "action.notification.shown"
 ACTION_TIMER_COMPLETE = "action.timer.complete"
 ACTION_STORAGE_CHANGED = "action.storage.changed"
