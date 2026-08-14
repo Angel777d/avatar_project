@@ -41,7 +41,6 @@
     cursor: pointer;
   }
   header button:hover { color: var(--text); border-color: var(--accent); }
-  #reset { margin-left: auto; }
   #clear:hover { color: #e2686d; border-color: #e2686d; }
   #board {
     flex: 1;
@@ -56,7 +55,7 @@
     border: 1px solid var(--panel-edge);
     border-radius: 10px;
     flex: 1 1 260px;
-    min-width: 140px;
+    min-width: 160px;
     max-width: 420px;
     display: flex;
     flex-direction: column;
@@ -80,28 +79,20 @@
   .column h2 .drop-column:hover { opacity: 1; color: #e2686d; }
   .column h2 .tail { display: flex; align-items: center; }
   #new-column {
-    flex: 0 0 42px;
-    min-width: 0;
-    background: none;
+    margin-left: auto;
+    flex: 0 1 190px;
+    min-width: 90px;
+    background: transparent;
     border: 1px dashed var(--panel-edge);
-    border-radius: 10px;
-    color: var(--muted);
-    padding: 12px 10px;
-    font: inherit;
-    text-align: center;
-    cursor: pointer;
-    outline: none;
-    transition: flex-basis .12s ease;
-  }
-  #new-column:hover { border-color: var(--card-edge); color: var(--text); }
-  #new-column:focus {
-    flex: 0 0 180px;
-    border-color: var(--accent);
+    border-radius: 6px;
     color: var(--text);
-    text-align: left;
-    padding: 12px 14px;
-    cursor: text;
+    padding: 5px 10px;
+    font: inherit;
+    outline: none;
   }
+  #new-column::placeholder { color: var(--muted); }
+  #new-column:hover { border-color: var(--card-edge); }
+  #new-column:focus { border-style: solid; border-color: var(--accent); }
   .column h2 {
     cursor: grab;
     font-size: 12px;
@@ -131,6 +122,7 @@
     list-style: none;
     margin: 0;
     padding: 0 10px 6px;
+    overflow-x: hidden;
     overflow-y: auto;
     flex: 1;
     min-height: 40px;
@@ -194,6 +186,7 @@
   .add { display: flex; padding: 0 10px 10px; }
   .add input {
     flex: 1;
+    min-width: 0;
     background: var(--card);
     border: 1px solid var(--card-edge);
     color: var(--text);
@@ -208,6 +201,7 @@
 <body>
 <header>
   <h1>Kanban</h1>
+  <input id="new-column" placeholder="Add a column…" title="name it and press enter" maxlength="40">
   <button id="reset" title="move everything that is not done back to the backlog">Reset</button>
   <button id="clear" title="delete every card">Full reset</button>
 </header>
@@ -430,35 +424,19 @@ function columnNode(column) {
 function render(data) {
   latest = data;
   const root = document.getElementById("board");
-  const typed = document.getElementById("new-column");
-  const pending = typed && document.activeElement === typed ? typed.value : null;
   root.textContent = "";
   data.columns.forEach((column) => root.appendChild(columnNode(column)));
-  root.appendChild(adderNode(pending));
-}
-
-function adderNode(pending) {
-  const input = document.createElement("input");
-  input.id = "new-column";
-  input.placeholder = "+";
-  input.title = "add a column";
-  input.maxLength = 40;
-  input.addEventListener("focus", () => { input.placeholder = "Add a column…"; });
-  input.addEventListener("blur", () => { input.placeholder = "+"; });
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") input.blur();
-    if (event.key !== "Enter" || !input.value.trim()) return;
-    board.add_column(input.value);
-    input.value = "";
-  });
-  if (pending !== null) {
-    input.value = pending;
-    setTimeout(() => input.focus(), 0);
-  }
-  return input;
 }
 
 function wireBoard() {
+  const adder = document.getElementById("new-column");
+  adder.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") adder.blur();
+    if (event.key !== "Enter" || !adder.value.trim()) return;
+    board.add_column(adder.value);
+    adder.value = "";
+  });
+
   const root = document.getElementById("board");
   root.addEventListener("dragover", (event) => {
     if (draggedColumn) event.preventDefault();
