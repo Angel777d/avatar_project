@@ -55,8 +55,9 @@
     background: var(--panel);
     border: 1px solid var(--panel-edge);
     border-radius: 10px;
-    width: 280px;
-    flex: 0 0 280px;
+    flex: 1 1 260px;
+    min-width: 170px;
+    max-width: 420px;
     display: flex;
     flex-direction: column;
     max-height: 100%;
@@ -79,7 +80,8 @@
   .column h2 .drop-column:hover { opacity: 1; color: #e2686d; }
   .column h2 .tail { display: flex; align-items: center; }
   #new-column {
-    flex: 0 0 200px;
+    flex: 0 1 170px;
+    min-width: 110px;
     background: none;
     border: 1px dashed var(--panel-edge);
     border-radius: 10px;
