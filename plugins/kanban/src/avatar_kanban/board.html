@@ -46,8 +46,8 @@
   #board {
     flex: 1;
     display: flex;
-    gap: 14px;
-    padding: 16px 18px;
+    gap: 12px;
+    padding: 16px;
     overflow-x: auto;
     align-items: flex-start;
   }
@@ -56,7 +56,7 @@
     border: 1px solid var(--panel-edge);
     border-radius: 10px;
     flex: 1 1 260px;
-    min-width: 170px;
+    min-width: 140px;
     max-width: 420px;
     display: flex;
     flex-direction: column;
@@ -80,17 +80,28 @@
   .column h2 .drop-column:hover { opacity: 1; color: #e2686d; }
   .column h2 .tail { display: flex; align-items: center; }
   #new-column {
-    flex: 0 1 170px;
-    min-width: 110px;
+    flex: 0 0 42px;
+    min-width: 0;
     background: none;
     border: 1px dashed var(--panel-edge);
     border-radius: 10px;
     color: var(--muted);
-    padding: 12px 14px;
+    padding: 12px 10px;
     font: inherit;
+    text-align: center;
+    cursor: pointer;
     outline: none;
+    transition: flex-basis .12s ease;
   }
-  #new-column:focus { border-color: var(--accent); color: var(--text); }
+  #new-column:hover { border-color: var(--card-edge); color: var(--text); }
+  #new-column:focus {
+    flex: 0 0 180px;
+    border-color: var(--accent);
+    color: var(--text);
+    text-align: left;
+    padding: 12px 14px;
+    cursor: text;
+  }
   .column h2 {
     cursor: grab;
     font-size: 12px;
@@ -136,10 +147,12 @@
     align-items: flex-start;
   }
   .card.dragging { opacity: .4; }
-  .card .title { flex: 1; line-height: 1.35; }
+  .card .title { flex: 1; min-width: 0; line-height: 1.35; overflow-wrap: anywhere; }
   .card .created { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
   .card .due {
     margin-top: 6px;
+    max-width: 100%;
+    min-width: 0;
     background: transparent;
     border: 1px solid transparent;
     color: var(--muted);
@@ -427,9 +440,13 @@ function render(data) {
 function adderNode(pending) {
   const input = document.createElement("input");
   input.id = "new-column";
-  input.placeholder = "Add a column…";
+  input.placeholder = "+";
+  input.title = "add a column";
   input.maxLength = 40;
+  input.addEventListener("focus", () => { input.placeholder = "Add a column…"; });
+  input.addEventListener("blur", () => { input.placeholder = "+"; });
   input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") input.blur();
     if (event.key !== "Enter" || !input.value.trim()) return;
     board.add_column(input.value);
     input.value = "";
