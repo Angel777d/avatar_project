@@ -71,7 +71,7 @@ Still missing for a real release: `avatar_project` is a private repository, so i
 
 Plugins do not own windows. A plugin registers a page and asks for it by title; the `avatar_shell` plugin owns the windows and puts each page in a tab.
 
-- One window per **window name**, default `""`. Pass a name to get a second window instead of another tab.
+- One window per **window name**, default `""`. Pass a name to get a second window instead of another tab, and the name is the window's title: `avatar_stats` registers under `Statistics` and opens beside the main window rather than crowding it.
 - A window is created on the first `request.page.show` for it, and a tab's web view is built and loaded the first time that tab is shown — registering costs nothing.
 - Tabs appear in registration order, which follows plugin discovery order.
 - **Minimum window size is 720x520** and the default is 960x640, so a page must stay usable at the minimum: fill the space or centre in it. Pomodoro centres, kanban and calendar fill.

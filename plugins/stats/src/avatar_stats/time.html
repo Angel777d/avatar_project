@@ -14,6 +14,8 @@
     --muted: #8b93a3;
     --accent: #4e96e6;
     --rest: #57b98a;
+    --warn: #e0a458;
+    --bad: #e2686d;
   }
   * { box-sizing: border-box; }
   body {
@@ -24,104 +26,175 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px;
   }
-  .panel {
-    background: var(--panel);
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0 auto 0 0; }
+  button, .ranges span {
+    background: transparent;
     border: 1px solid var(--panel-edge);
-    border-radius: 9px;
-    padding: 12px 14px;
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font: inherit;
+    cursor: pointer;
   }
+  button:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .ranges { display: flex; gap: 6px; }
+  .ranges span.on { color: var(--accent); border-color: var(--accent); }
   input {
     background: var(--card);
     border: 1px solid var(--card-edge);
     color: var(--text);
     border-radius: 6px;
-    padding: 6px 9px;
+    padding: 5px 9px;
     font: inherit;
+    min-width: 0;
     outline: none;
+    color-scheme: dark;
   }
   input:focus { border-color: var(--accent); }
-  button {
-    background: var(--card);
-    border: 1px solid var(--card-edge);
-    color: var(--text);
-    border-radius: 7px;
-    padding: 6px 14px;
-    font: inherit;
-    cursor: pointer;
-  }
-  button:hover:not(:disabled) { border-color: var(--accent); }
-  button:disabled { color: var(--muted); cursor: default; opacity: .5; }
+  #custom { display: none; gap: 6px; }
+  body.custom #custom { display: flex; }
 
-  #watch { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  #label { flex: 1; min-width: 140px; }
-  #elapsed {
-    font-size: 24px;
-    font-variant-numeric: tabular-nums;
-    min-width: 104px;
-    text-align: right;
+  #watch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--panel-edge);
+    background: var(--panel);
   }
+  #label { flex: 1 1 160px; }
+  #elapsed { font-size: 18px; font-variant-numeric: tabular-nums; min-width: 84px; text-align: right; }
   body.running #elapsed { color: var(--accent); }
-  #toggle { min-width: 78px; }
-  #manual { display: flex; align-items: center; gap: 6px; }
-  #add-label { width: 130px; }
+  #add-label { flex: 0 1 130px; }
   #add-minutes { width: 62px; text-align: right; }
 
-  #totals { color: var(--muted); font-size: 12px; display: flex; gap: 14px; }
-  #totals b { color: var(--text); font-weight: 600; }
-
-  #ranges { display: flex; gap: 6px; }
-  #ranges button.on { border-color: var(--accent); color: var(--accent); }
-
-  #chart { display: flex; align-items: flex-end; gap: 4px; height: 92px; margin-top: 10px; }
-  .bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
-  .bar i {
-    display: block;
-    background: var(--accent);
-    border-radius: 3px 3px 0 0;
-    min-height: 2px;
-    opacity: .85;
+  main { flex: 1; overflow-y: auto; padding: 14px 16px 20px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
   }
-  .bar span {
-    display: block;
-    text-align: center;
-    color: var(--muted);
-    font-size: 10px;
-    padding-top: 4px;
-    white-space: nowrap;
-    overflow: hidden;
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 9px;
+    padding: 12px 14px;
+    min-width: 0;
   }
-  .bar.today i { background: var(--rest); }
-
-  #middle { display: flex; gap: 12px; min-height: 0; }
-  #middle > div { flex: 1; min-width: 0; overflow: auto; }
   h2 {
-    margin: 0 0 8px;
+    margin: 0 0 10px;
     font-size: 11px;
     letter-spacing: .12em;
     text-transform: uppercase;
     color: var(--muted);
     font-weight: 600;
   }
-  .row {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 3px 0;
-    border-bottom: 1px solid var(--panel-edge);
-  }
-  .row:last-child { border-bottom: none; }
-  .row em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .row b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .empty { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 12px; padding: 6px 0; }
 
-  #log { flex: 1; min-height: 120px; overflow: auto; }
-  #log .row { align-items: center; }
-  #log .when { color: var(--muted); font-variant-numeric: tabular-nums; width: 96px; flex: none; }
-  #log .what { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #log .kind {
+  #tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .tile b { display: block; font-size: 24px; font-weight: 600; margin-top: 2px; }
+  .tile em { font-style: normal; color: var(--muted); font-size: 11px; }
+  .tile h2 { margin-bottom: 4px; }
+  #per-day-mode {
+    padding: 1px 7px;
+    font-size: 11px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  #insight { color: var(--text); font-size: 13px; margin-bottom: 10px; }
+  #insight span { color: var(--muted); }
+  .heat { display: flex; gap: 6px; overflow-x: auto; }
+  .heat .hours { display: flex; flex-direction: column; padding-top: 18px; }
+  .heat .hours i {
+    height: 13px;
+    font-style: normal;
+    font-size: 9px;
+    color: var(--muted);
+    line-height: 13px;
+    text-align: right;
+    padding-right: 4px;
+  }
+  .heat .day { flex: 1; min-width: 26px; }
+  .heat .day u {
+    display: block;
+    text-decoration: none;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    height: 18px;
+  }
+  .heat .day i {
+    display: block;
+    height: 13px;
+    margin-bottom: 1px;
+    border-radius: 2px;
+    background: rgba(78, 150, 230, .05);
+  }
+  .heat .day i.l1 { background: rgba(78, 150, 230, .22); }
+  .heat .day i.l2 { background: rgba(78, 150, 230, .42); }
+  .heat .day i.l3 { background: rgba(78, 150, 230, .64); }
+  .heat .day i.l4 { background: rgba(78, 150, 230, .88); }
+
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 110px; }
+  .bars .slot { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-width: 0; }
+  .bars .slot i { display: block; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; opacity: .85; }
+  .bars .slot u {
+    display: block;
+    text-decoration: none;
+    text-align: center;
+    color: var(--muted);
+    font-size: 10px;
+    padding-top: 4px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .bars .slot b { display: block; text-align: center; font-size: 10px; color: var(--rest); font-weight: 600; height: 12px; }
+
+  .row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .row + .row { border-top: 1px solid var(--panel-edge); }
+  .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .val { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  .row .meter { flex: 0 0 34%; height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
+  .row .meter i { display: block; height: 100%; background: var(--accent); opacity: .8; }
+
+  .split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--card); margin-bottom: 8px; }
+  .split i { display: block; }
+  .split i.early { background: var(--rest); }
+  .split i.on_time { background: var(--accent); }
+  .split i.late { background: var(--bad); }
+  .legend { display: flex; gap: 12px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+  .legend b { color: var(--text); font-weight: 600; }
+
+  .counts { display: flex; gap: 12px; margin-top: 12px; }
+  .counts div { flex: 1; background: var(--card); border-radius: 8px; padding: 8px 10px; }
+  .counts b { display: block; font-size: 20px; font-weight: 600; }
+  .counts em { font-style: normal; color: var(--muted); font-size: 11px; }
+  .counts div.hot b { color: var(--warn); }
+
+  .modes { display: flex; gap: 6px; margin-bottom: 8px; }
+  .modes span { font-size: 12px; padding: 3px 9px; }
+  .squares { display: flex; flex-wrap: wrap; gap: 4px; }
+  .squares i { width: 15px; height: 15px; border-radius: 3px; background: var(--card); display: block; }
+  .squares i.on { background: var(--accent); }
+  .squares i.today { outline: 1px solid var(--muted); outline-offset: 1px; }
+
+  #log { max-height: 300px; overflow-y: auto; }
+  #log .row .when { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; width: 92px; }
+  #log .row .kind {
     color: var(--muted);
     font-size: 11px;
     border: 1px solid var(--card-edge);
@@ -129,72 +202,106 @@
     padding: 1px 6px;
     flex: none;
   }
-  #log .took { font-variant-numeric: tabular-nums; width: 74px; text-align: right; flex: none; }
-  #log button {
-    padding: 1px 7px;
-    color: var(--muted);
-    border-color: transparent;
-    background: none;
-    flex: none;
-  }
-  #log button:hover { color: #e2686d; border-color: #e2686d; }
+  #log .row .took { font-variant-numeric: tabular-nums; flex: none; width: 62px; text-align: right; }
+  #log .row button { padding: 1px 7px; border-color: transparent; flex: none; }
+  #log .row button:hover { color: var(--bad); border-color: var(--bad); }
+  .moment .kind { color: var(--rest); border-color: var(--rest); }
 </style>
 </head>
 <body>
-  <div class="panel">
-    <div id="watch">
-      <input id="label" type="text" maxlength="80" placeholder="what are you working on">
-      <button id="toggle">Start</button>
-      <div id="elapsed">00:00:00</div>
-      <div id="manual">
-        <input id="add-label" type="text" maxlength="80" placeholder="add by hand">
-        <input id="add-minutes" type="number" min="1" max="1440" placeholder="min">
-        <button id="add">Add</button>
+<header>
+  <h1>Time</h1>
+  <div class="ranges">
+    <span data-days="7">7 days</span>
+    <span data-days="30">30 days</span>
+    <span data-days="365">1 year</span>
+    <span data-days="0">Custom</span>
+  </div>
+  <div id="custom">
+    <input id="from" type="date">
+    <input id="to" type="date">
+  </div>
+  <button id="export" title="write this range beside the database">Export</button>
+</header>
+
+<div id="watch">
+  <input id="label" type="text" maxlength="80" placeholder="what are you working on">
+  <button id="toggle">Start</button>
+  <div id="elapsed">00:00:00</div>
+  <input id="add-label" type="text" maxlength="80" placeholder="add by hand">
+  <input id="add-minutes" type="number" min="1" max="1440" placeholder="min">
+  <button id="add">Add</button>
+</div>
+
+<main>
+  <div id="tiles">
+    <div class="card tile"><h2>Tracked</h2><b id="t-tracked">0m</b><em id="t-range"></em></div>
+    <div class="card tile">
+      <h2>Average<button id="per-day-mode">per day</button></h2>
+      <b id="t-average">0m</b><em id="t-average-note"></em>
+    </div>
+    <div class="card tile"><h2>Created</h2><b id="t-created">0</b><em>tasks</em></div>
+    <div class="card tile"><h2>Completed</h2><b id="t-done">0</b><em>tasks</em></div>
+    <div class="card tile"><h2>Completion</h2><b id="t-rate">0%</b><em>of what was created</em></div>
+  </div>
+
+  <div class="grid">
+    <div class="card" style="grid-column: 1 / -1">
+      <h2>Your work rhythm</h2>
+      <div id="insight"></div>
+      <div class="heat" id="heat"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><h2>Time logged &amp; tasks completed</h2><div id="series"></div></div>
+    <div class="card"><h2>By task</h2><div id="by-task"></div></div>
+    <div class="card"><h2>By tag</h2><div id="by-tag"></div></div>
+    <div class="card"><h2>By plugin</h2><div id="by-type"></div></div>
+    <div class="card"><h2>By source</h2><div id="by-source"></div></div>
+    <div class="card">
+      <h2>Completion timing</h2>
+      <div id="timing"></div>
+      <div class="counts">
+        <div id="zombie-box"><b id="zombie">0</b><em>zombie — never started</em></div>
+        <div id="stuck-box"><b id="stuck">0</b><em>stuck — no activity</em></div>
       </div>
     </div>
-    <div id="totals" style="margin-top:10px">
-      <span>today <b id="today">0m</b></span>
-      <span>range <b id="total">0m</b></span>
-      <span>created <b id="created">0</b></span>
-      <span>done <b id="done">0</b></span>
-      <span>rate <b id="rate">0%</b></span>
-      <span id="split"></span>
+    <div class="card">
+      <h2>Streak</h2>
+      <div class="modes">
+        <span data-mode="completion" class="on">Completion</span>
+        <span data-mode="activity">Activity</span>
+        <span data-mode="focus">Focus</span>
+      </div>
+      <div class="empty" id="streak-note"></div>
+      <div class="squares" id="squares"></div>
     </div>
   </div>
 
-  <div class="panel">
-    <div id="ranges">
-      <button data-days="1">Today</button>
-      <button data-days="7">7 days</button>
-      <button data-days="30">30 days</button>
-    </div>
-    <div id="chart"></div>
+  <div class="grid">
+    <div class="card" style="grid-column: 1 / -1"><h2>Log</h2><div id="log"></div></div>
   </div>
-
-  <div id="middle" class="panel">
-    <div><h2>By task</h2><div id="by-label"></div></div>
-    <div><h2>By plugin</h2><div id="by-type"></div></div>
-    <div><h2>By tag</h2><div id="by-tag"></div></div>
-  </div>
-
-  <div class="panel" id="log-panel" style="display:flex;flex-direction:column;min-height:0;flex:1">
-    <h2>Log</h2>
-    <div id="log"></div>
-  </div>
+</main>
 
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <script>
 let bridge = null;
 let days = 7;
+let mode = "completion";
+let perWorked = false;
+let latest = null;
 
-function pad(value) {
-  return String(value).padStart(2, "0");
-}
+const MODE_NOTES = {
+  completion: "days you completed at least one task",
+  activity: "days you tracked any time",
+  focus: "days a pomodoro ran",
+};
+
+function pad(value) { return String(value).padStart(2, "0"); }
 
 function clock(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${pad(h)}:${pad(m)}:${pad(seconds % 60)}`;
+  return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
 }
 
 function span(seconds) {
@@ -207,119 +314,208 @@ function span(seconds) {
   return `${seconds}s`;
 }
 
-function label(day) {
-  const parsed = new Date(`${day}T00:00:00`);
-  return parsed.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2);
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
 }
 
-function renderList(node, items) {
+function fill(node, items, empty, draw) {
   node.textContent = "";
   if (!items.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "nothing yet";
-    node.appendChild(empty);
+    node.appendChild(el("div", "empty", empty));
     return;
   }
-  items.forEach((item) => {
-    const row = document.createElement("div");
-    row.className = "row";
-    const name = document.createElement("b");
-    name.textContent = item.name;
+  items.forEach((item) => node.appendChild(draw(item)));
+}
+
+function renderList(node, items, empty) {
+  const peak = Math.max(1, ...items.map((item) => item.seconds));
+  fill(node, items.slice(0, 8), empty, (item) => {
+    const row = el("div", "row");
+    const name = el("div", "name", item.name);
     name.title = item.name;
-    const value = document.createElement("em");
-    value.textContent = span(item.seconds);
-    row.append(name, value);
-    node.appendChild(row);
+    const meter = el("div", "meter");
+    const bar = el("i");
+    bar.style.width = `${Math.round((item.seconds / peak) * 100)}%`;
+    meter.appendChild(bar);
+    row.append(name, meter, el("div", "val", span(item.seconds)));
+    return row;
   });
 }
 
-function renderChart(series) {
-  const chart = document.getElementById("chart");
+function renderHeat(data) {
+  const heat = document.getElementById("heat");
+  heat.textContent = "";
+  const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const peak = data.rhythm.peak;
+
+  const hours = el("div", "hours");
+  for (let hour = 0; hour < 24; hour++) {
+    hours.appendChild(el("i", null, hour % 3 === 0 ? `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}` : ""));
+  }
+  heat.appendChild(hours);
+
+  data.rhythm.grid.forEach((row, weekday) => {
+    const column = el("div", "day");
+    column.appendChild(el("u", null, names[weekday]));
+    row.forEach((seconds, hour) => {
+      const share = peak ? seconds / peak : 0;
+      const level = seconds === 0 ? "" : ` l${Math.min(4, Math.max(1, Math.ceil(share * 4)))}`;
+      const cell = el("i", level ? level.trim() : null);
+      cell.title = `${names[weekday]} ${hour}:00 — ${span(seconds)}`;
+      column.appendChild(cell);
+    });
+    heat.appendChild(column);
+  });
+
+  const insight = document.getElementById("insight");
+  insight.textContent = data.rhythm.insight || "Nothing tracked in this range yet.";
+  if (data.rhythm.insight && data.rhythm.settling) {
+    insight.appendChild(el("span", null, " Based on limited data — patterns will settle over time."));
+  }
+}
+
+function renderSeries(data) {
+  const node = document.getElementById("series");
+  const peak = Math.max(1, ...data.series.map((point) => point.seconds));
   const today = new Date().toISOString().slice(0, 10);
-  const peak = Math.max(1, ...series.map((point) => point.seconds));
-  chart.textContent = "";
-  series.forEach((point) => {
-    const bar = document.createElement("div");
-    bar.className = point.day === today ? "bar today" : "bar";
-    bar.title = `${point.day} — ${span(point.seconds)}`;
-    const fill = document.createElement("i");
-    fill.style.height = `${Math.round((point.seconds / peak) * 100)}%`;
-    const name = document.createElement("span");
-    name.textContent = series.length > 14 ? point.day.slice(8) : label(point.day);
-    bar.append(fill, name);
-    chart.appendChild(bar);
-  });
-}
+  const wide = data.series.length <= 14;
 
-function renderLog(entries) {
-  const log = document.getElementById("log");
-  log.textContent = "";
-  if (!entries.length) {
-    log.innerHTML = '<div class="empty">nothing logged in this range</div>';
+  node.textContent = "";
+  if (!data.series.length) {
+    node.appendChild(el("div", "empty", "nothing in this range yet"));
     return;
   }
-  entries.forEach((entry) => {
-    const row = document.createElement("div");
-    row.className = "row";
+  const bars = el("div", "bars");
+  data.series.forEach((point) => {
+    const slot = el("div", "slot");
+    slot.title = `${point.key} — ${span(point.seconds)}${point.done ? `, ${point.done} done` : ""}`;
+    slot.appendChild(el("b", null, point.done ? String(point.done) : ""));
+    const bar = el("i");
+    bar.style.height = `${Math.round((point.seconds / peak) * 100)}%`;
+    if (point.key === today) bar.style.background = "var(--rest)";
+    slot.appendChild(bar);
+    slot.appendChild(el("u", null, wide ? point.key.slice(5) : point.key.slice(5, 7)));
+    bars.appendChild(slot);
+  });
+  node.appendChild(bars);
+}
 
-    const when = document.createElement("div");
-    when.className = "when";
-    when.textContent = `${entry.day.slice(5)} ${entry.time}`;
+function renderTiming(data) {
+  const node = document.getElementById("timing");
+  const timing = data.timing;
+  const total = timing.early + timing.on_time + timing.late;
+  node.textContent = "";
 
-    const what = document.createElement("div");
-    what.className = "what";
-    what.textContent = entry.label || "—";
-    what.title = entry.tags.length ? entry.tags.join(", ") : "";
+  if (!total) {
+    node.appendChild(el("div", "empty", "no completed tasks with deadlines yet"));
+    return;
+  }
+  const split = el("div", "split");
+  ["early", "on_time", "late"].forEach((key) => {
+    const piece = el("i", key);
+    piece.style.width = `${(timing[key] / total) * 100}%`;
+    split.appendChild(piece);
+  });
+  const legend = el("div", "legend");
+  [["early", "early"], ["on_time", "on time"], ["late", "late"]].forEach(([key, name]) => {
+    const item = el("span");
+    item.append(el("b", null, String(timing[key])), document.createTextNode(` ${name}`));
+    legend.appendChild(item);
+  });
+  node.append(split, legend);
+}
 
-    const kind = document.createElement("div");
-    kind.className = "kind";
-    kind.textContent = entry.source && entry.source !== entry.type
-      ? `${entry.type} · ${entry.source}` : entry.type;
+function renderCounts(data) {
+  const zombie = document.getElementById("zombie");
+  const stuck = document.getElementById("stuck");
+  zombie.textContent = data.zombie.length;
+  stuck.textContent = data.stuck.length;
+  document.getElementById("zombie-box").classList.toggle("hot", data.zombie.length > 0);
+  document.getElementById("stuck-box").classList.toggle("hot", data.stuck.length > 0);
+  const name = (item) => `${item.label} (${item.days}d)`;
+  document.getElementById("zombie-box").title =
+    data.zombie.slice(0, 6).map(name).join("\n") || "created 14+ days ago, never tracked";
+  document.getElementById("stuck-box").title =
+    data.stuck.slice(0, 6).map(name).join("\n") || "tracked once, nothing for 7+ days";
+}
 
-    const took = document.createElement("div");
-    took.className = "took";
-    took.textContent = span(entry.seconds);
+function renderStreak(data) {
+  const squares = document.getElementById("squares");
+  const today = new Date().toISOString().slice(0, 10);
+  const shown = data.streak.slice(-30);
+  document.getElementById("streak-note").textContent = MODE_NOTES[mode];
+  fill(squares, shown, "no days in range", (day) => {
+    const box = el("i", `${day[mode] ? "on" : ""}${day.day === today ? " today" : ""}`.trim() || null);
+    box.title = day.day;
+    return box;
+  });
+}
 
-    const drop = document.createElement("button");
-    drop.textContent = "×";
-    drop.title = "forget this entry";
-    drop.addEventListener("click", () => bridge.forget(entry.id));
-
-    row.append(when, what, kind, took, drop);
-    log.appendChild(row);
+function renderLog(data) {
+  fill(document.getElementById("log"), data.rows, "nothing logged in this range", (row) => {
+    const line = el("div", `row ${row.kind === "moment" ? "moment" : ""}`.trim());
+    line.append(
+      el("div", "when", `${row.day.slice(5)} ${row.time}`),
+      el("div", "name", row.label || "—"),
+      el("div", "kind", row.kind === "moment" ? `${row.type} ${row.source}` : `${row.type} · ${row.source}`),
+      el("div", "took", row.seconds ? span(row.seconds) : ""),
+    );
+    const drop = el("button", null, "×");
+    drop.title = "forget this row";
+    drop.addEventListener("click", () => bridge.forget(row.id));
+    line.appendChild(drop);
+    return line;
   });
 }
 
 function render(data) {
+  latest = data;
+  const totals = data.totals;
   document.body.classList.toggle("running", data.running);
   document.getElementById("elapsed").textContent = clock(data.elapsed);
   document.getElementById("toggle").textContent = data.running ? "Stop" : "Start";
-  const input = document.getElementById("label");
-  if (document.activeElement !== input) input.value = data.running ? data.label : input.value;
-  input.disabled = data.running;
+  const label = document.getElementById("label");
+  label.disabled = data.running;
+  if (data.running && document.activeElement !== label) label.value = data.label;
 
-  document.getElementById("today").textContent = span(data.today);
-  document.getElementById("total").textContent = span(data.total);
-  document.getElementById("created").textContent = data.created;
-  document.getElementById("done").textContent = data.done + (data.undone ? ` (−${data.undone})` : "");
-  document.getElementById("rate").textContent = `${data.rate}%`;
-  document.getElementById("split").textContent = data.by_source
-    .map((item) => `${item.name} ${span(item.seconds)}`).join(" · ");
+  document.getElementById("t-tracked").textContent = span(totals.tracked);
+  document.getElementById("t-range").textContent = `${data.range.since} → ${data.range.until}`;
+  document.getElementById("t-average").textContent =
+    span(perWorked ? totals.per_worked : totals.per_day);
+  document.getElementById("per-day-mode").textContent = perWorked ? "per worked day" : "per day";
+  document.getElementById("t-average-note").textContent = perWorked
+    ? `over ${totals.worked} day${totals.worked === 1 ? "" : "s"} with tracked time`
+    : `over ${data.range.days} days`;
+  document.getElementById("t-created").textContent = totals.created;
+  document.getElementById("t-done").textContent = totals.done;
+  document.getElementById("t-rate").textContent = totals.created ? `${totals.rate}%` : "—";
 
-  document.querySelectorAll("#ranges button").forEach((button) => {
-    button.classList.toggle("on", Number(button.dataset.days) === data.days);
+  document.querySelectorAll(".ranges span").forEach((button) => {
+    button.classList.toggle("on", Number(button.dataset.days) === days);
   });
 
-  renderChart(data.series);
-  renderList(document.getElementById("by-label"), data.by_label);
-  renderList(document.getElementById("by-type"), data.by_type);
-  renderList(document.getElementById("by-tag"), data.by_tag);
-  renderLog(data.entries);
+  renderHeat(data);
+  renderSeries(data);
+  renderList(document.getElementById("by-task"), data.by_task, "no tasks with tracked time yet");
+  renderList(document.getElementById("by-tag"), data.by_tag, "no tagged time yet");
+  renderList(document.getElementById("by-type"), data.by_type, "nothing tracked yet");
+  renderList(document.getElementById("by-source"), data.by_source, "nothing tracked yet");
+  renderTiming(data);
+  renderCounts(data);
+  renderStreak(data);
+  renderLog(data);
+}
+
+function bounds() {
+  return [document.getElementById("from").value, document.getElementById("to").value];
 }
 
 function refresh() {
-  bridge.snapshot(days, (payload) => render(JSON.parse(payload)));
+  const [from, to] = bounds();
+  bridge.snapshot(days, days ? "" : from, days ? "" : to, (payload) => render(JSON.parse(payload)));
 }
 
 new QWebChannel(qt.webChannelTransport, (channel) => {
@@ -333,12 +529,10 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
     }
     bridge.start(document.getElementById("label").value);
   });
-
   document.getElementById("label").addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !document.body.classList.contains("running"))
       bridge.start(event.target.value);
   });
-
   document.getElementById("add").addEventListener("click", () => {
     const minutes = parseInt(document.getElementById("add-minutes").value, 10) || 0;
     if (!minutes) return;
@@ -346,11 +540,40 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
     document.getElementById("add-minutes").value = "";
   });
 
-  document.querySelectorAll("#ranges button").forEach((button) => {
+  document.querySelectorAll(".ranges span").forEach((button) => {
     button.addEventListener("click", () => {
       days = Number(button.dataset.days);
+      document.body.classList.toggle("custom", days === 0);
+      if (days === 0 && !document.getElementById("to").value) {
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById("to").value = today;
+        document.getElementById("from").value =
+          new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
+      }
       refresh();
     });
+  });
+  document.getElementById("from").addEventListener("change", refresh);
+  document.getElementById("to").addEventListener("change", refresh);
+
+  document.querySelectorAll(".modes span").forEach((button) => {
+    button.addEventListener("click", () => {
+      mode = button.dataset.mode;
+      document.querySelectorAll(".modes span").forEach((other) =>
+        other.classList.toggle("on", other === button));
+      if (latest) renderStreak(latest);
+    });
+  });
+
+  document.getElementById("per-day-mode").addEventListener("click", (event) => {
+    event.stopPropagation();
+    perWorked = !perWorked;
+    if (latest) render(latest);
+  });
+
+  document.getElementById("export").addEventListener("click", () => {
+    const [from, to] = bounds();
+    bridge.export(days, days ? "" : from, days ? "" : to);
   });
 
   refresh();

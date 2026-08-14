@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from avatar_api import Entity, Env, System, events
-from avatar_api.components import StaticIdEC
+from avatar_api.components import NotificationEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_api.timelog import (
 	DATA,
@@ -22,17 +22,20 @@ from avatar_api.timelog import (
 )
 
 from avatar_stats.components import LogEntryEC, LogEventEC, StopwatchEC
+from avatar_stats.export import write_csv
 from avatar_stats.window import (
 	EVENT_ADD,
+	EVENT_EXPORT,
 	EVENT_FORGET,
 	EVENT_OPEN,
 	EVENT_START,
 	EVENT_STOP,
 	PAGE,
+	WINDOW,
 	StatsBridge,
 )
 
-MENU_ITEM = "Open time"
+MENU_ITEM = "Open statistics"
 PAGE_TITLE = "Time"
 
 TYPE_NAME = "stats"
@@ -59,13 +62,14 @@ class StatsSystem(System):
 		self.add_listener(EVENT_STOP, self.__on_stop)
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_FORGET, self.__on_forget)
+		self.add_listener(EVENT_EXPORT, self.__on_export)
 		self.add_listener(events.ACTION_LOG_DATA, self.__on_data)
 		self.add_listener(events.ACTION_LOG_EVENT, self.__on_event)
 		self.add_listener(events.REQUEST_APP_CLOSE, self.__on_app_close)
 
 		self.__bridge = StatsBridge(self.env)
 		await self.env.event_bus.dispatch_async(
-			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"stats": self.__bridge})
+			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"stats": self.__bridge}, WINDOW)
 
 	async def stop(self):
 		await super().stop()
@@ -101,7 +105,18 @@ class StatsSystem(System):
 		self.__changed()
 
 	async def __on_open(self):
-		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)
+		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE, WINDOW)
+
+	async def __on_export(self, days: int, since: str, until: str):
+		path, written = write_csv(self.env.data_storage, days, since, until)
+		self.env.event_bus.dispatch(
+			events.REQUEST_NOTIFICATION_SHOW,
+			NotificationEC(
+				title="Time exported",
+				text=f"{written} rows written to {path}" if written else "nothing to export",
+				source=TYPE_NAME,
+			),
+		)
 
 	async def __on_start(self, label: str = ""):
 		self.__close()

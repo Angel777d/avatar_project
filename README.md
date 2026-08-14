@@ -10,7 +10,7 @@ Right-click the avatar for the menu; everything else opens from there.
 - **kanban** — a board with drag and drop and an optional deadline per card. Columns can be added, renamed and removed, except the three the board is built on; the cards in the in-progress one are what tracked time is logged against.
 - **calendar** — the current month, notes on a day, and the deadlines other plugins set.
 - **pomodoro** — focus and break timer with its own durations, a count of what ran in a row, and sets that chain one after another.
-- **stats** — where the time went: a stopwatch, whatever the other plugins report, and totals by day, task, plugin and tag.
+- **stats** — where the time went, in a window of its own: a stopwatch, whatever the other plugins report, a week-by-hour rhythm, totals by task, tag, plugin and source, what was finished early or late, and a csv export.
 
 ## Run
 

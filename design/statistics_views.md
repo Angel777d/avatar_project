@@ -30,7 +30,7 @@ That addition is in — the table below is what it unlocks, and the views themse
 
 ## The page
 
-One scrolling dashboard, not tabs — at the 720 minimum a tab bar costs more than it saves. Sections in this order, each a card in a `repeat(auto-fit, minmax(280px, 1fr))` grid so three cards on a wide window become one column at the minimum.
+**Its own window.** `avatar_stats` registers under the window name `Statistics`, so the dashboard opens beside the board instead of as a fifth tab competing with it for 280px columns. One scrolling page inside it, not tabs — at the 720 minimum a tab bar costs more than it saves. Sections in this order, each a card in a `repeat(auto-fit, minmax(280px, 1fr))` grid so three cards on a wide window become one column at the minimum.
 
 **Toolbar** — range `7 days · 30 days · 1 year · custom`, and export. The range drives every view on the page; `custom` reveals two date inputs.
 
@@ -61,10 +61,12 @@ A `@Slot` writing the spans of the selected range as csv beside the database —
 
 | step | change |
 | --- | --- |
-| 1 | `avatar_stats/summary.py` — move aggregation out of `window.py`, add rhythm, streaks, insight, buckets. Page restructured into the sections above, range switcher, export. All of it from spans |
+| 1 | **done** — `avatar_stats/summary.py` holds the aggregation, `export.py` the csv, `time.html` the dashboard, and the page lives in the `Statistics` window |
 | 2 | **done** — `action.log.event` in `avatar_api.events`, `log_event()` beside `log_time`/`log_data`, `LogEventEC` registered `log_event` in stats |
 | 3 | **done** — kanban dispatches `created` / `done` / `undone` with the deadline in `data` |
 
 Steps 2 and 3 went first, so the log is already collecting what the task views need: by the time they are drawn there is history to draw. Step 1 is the whole page and stands alone.
+
+**Time totals group by `span`, everything else counts records.** One session is logged once per view — kanban and pomodoro both describe it — so summing records doubles the day. Tracked time, the average, the per-bucket bars, the rhythm and the streak all fold records back to their span first, taking the longest duration for the span since the calendar's copy is clipped to its meeting. *By plugin* stays per record, because that is the question. *By task* counts only records carrying a `ref`, or the pomodoro's own preset name outranks every real task.
 
 `build_snapshot` returns one dict for the whole page; the page asks once per range change and once per `changed`. Aggregation walks the log twice — once for spans, once for events — and nothing else, so a year of records is still a single pass over a few thousand rows.

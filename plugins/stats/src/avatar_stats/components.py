@@ -3,9 +3,12 @@ from typing import Dict, List, Optional
 
 from avatar_api import EntityComponent
 
-MAX_ENTRIES = 200
-RANGES = (1, 7, 30)
+MAX_ROWS = 200
 DEFAULT_RANGE = 7
+DAY_BUCKETS = 31
+ZOMBIE_DAYS = 14
+STUCK_DAYS = 7
+SOURCE_POMODORO = "pomodoro"
 
 
 class LogEntryEC(EntityComponent):
