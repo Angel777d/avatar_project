@@ -37,9 +37,6 @@ class ManagerSystem(System):
 		                       "deferred": [], "failed": [], "restart": False, "error": ""}
 		self.__loading = False
 
-	async def start(self):
-		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
-
 		self.add_listener(EVENT_OPEN, self.__on_open)
 		self.add_listener(EVENT_TOGGLE, self.__on_toggle)
 		self.add_listener(EVENT_APPLY, self.__on_apply)
@@ -49,12 +46,14 @@ class ManagerSystem(System):
 		self.add_listener(EVENT_REGISTRY_REMOVE, self.__on_registry_remove)
 		self.add_listener(events.ACTION_PLUGINS_CHANGED, self.__on_plugins_changed)
 
+	async def start(self):
+		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
+
 		self.__bridge = Manager(self)
 		await self.env.event_bus.dispatch_async(
 			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"manager": self.__bridge})
 
 		self.__reload(False)
-		await self.env.event_bus.dispatch_async(events.REQUEST_PLUGINS_REFRESH)
 
 	async def stop(self):
 		await super().stop()
