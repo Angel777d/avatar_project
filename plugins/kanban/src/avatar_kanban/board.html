@@ -4,22 +4,7 @@
 <meta charset="utf-8">
 <title>Kanban</title>
 <style>
-  :root {
-    --bg: #16181d;
-    --panel: #1e2127;
-    --panel-edge: #2b2f38;
-    --card: #262a33;
-    --card-edge: #343945;
-    --text: #e6e8ec;
-    --muted: #8b93a3;
-    --accent: #4e96e6;
-  }
-  * { box-sizing: border-box; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 14px "Segoe UI", system-ui, sans-serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -41,7 +26,7 @@
     cursor: pointer;
   }
   header button:hover { color: var(--text); border-color: var(--accent); }
-  #clear:hover { color: #e2686d; border-color: #e2686d; }
+  #clear:hover { color: var(--bad); border-color: var(--bad); }
   #board {
     flex: 1;
     display: flex;
@@ -76,7 +61,7 @@
     opacity: 0;
   }
   .column:hover h2 .drop-column { opacity: .6; }
-  .column h2 .drop-column:hover { opacity: 1; color: #e2686d; }
+  .column h2 .drop-column:hover { opacity: 1; color: var(--bad); }
   .column h2 .tail { display: flex; align-items: center; }
   #new-column {
     margin-left: auto;
@@ -127,17 +112,6 @@
     flex: 1;
     min-height: 40px;
   }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--card-edge);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    cursor: grab;
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-  }
   .card.dragging { opacity: .4; }
   .card .title { flex: 1; min-width: 0; line-height: 1.35; overflow-wrap: anywhere; }
   .card .created { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
@@ -155,15 +129,8 @@
     color-scheme: dark;
   }
   .card .due:hover, .card .due:focus { border-color: var(--card-edge); outline: none; }
-  .card .due.set { color: #e0a458; }
+  .card .due.set { color: var(--warn); }
   .tagstrip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-  .tag {
-    border: 1px solid var(--card-edge);
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 1px 8px;
-    font-size: 11px;
-  }
   .card .kill {
     background: none;
     border: none;
@@ -173,7 +140,7 @@
     line-height: 1;
     padding: 0 2px;
   }
-  .card .kill:hover { color: #e2686d; }
+  .card .kill:hover { color: var(--bad); }
   .card .note {
     display: block;
     color: var(--muted);

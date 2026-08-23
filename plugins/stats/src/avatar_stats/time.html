@@ -4,25 +4,7 @@
 <meta charset="utf-8">
 <title>Time</title>
 <style>
-  :root {
-    --bg: #16181d;
-    --panel: #1e2127;
-    --panel-edge: #2b2f38;
-    --card: #262a33;
-    --card-edge: #343945;
-    --text: #e6e8ec;
-    --muted: #8b93a3;
-    --accent: #4e96e6;
-    --rest: #57b98a;
-    --warn: #e0a458;
-    --bad: #e2686d;
-  }
-  * { box-sizing: border-box; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 14px "Segoe UI", system-ui, sans-serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -49,18 +31,6 @@
   button:disabled { opacity: .5; cursor: default; }
   .ranges { display: flex; gap: 6px; }
   .ranges span.on { color: var(--accent); border-color: var(--accent); }
-  input {
-    background: var(--card);
-    border: 1px solid var(--card-edge);
-    color: var(--text);
-    border-radius: 6px;
-    padding: 5px 9px;
-    font: inherit;
-    min-width: 0;
-    outline: none;
-    color-scheme: dark;
-  }
-  input:focus { border-color: var(--accent); }
   #custom { display: none; gap: 6px; }
   body.custom #custom { display: flex; }
 
@@ -86,7 +56,7 @@
     gap: 12px;
     margin-top: 12px;
   }
-  .card {
+  .panel {
     background: var(--panel);
     border: 1px solid var(--panel-edge);
     border-radius: 9px;
@@ -101,7 +71,6 @@
     color: var(--muted);
     font-weight: 600;
   }
-  .empty { color: var(--muted); font-size: 12px; padding: 6px 0; }
 
   #tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
   .tile b { display: block; font-size: 24px; font-weight: 600; margin-top: 2px; }
@@ -162,7 +131,7 @@
     overflow: hidden;
     white-space: nowrap;
   }
-  .bars .slot b { display: block; text-align: center; font-size: 10px; color: var(--rest); font-weight: 600; height: 12px; }
+  .bars .slot b { display: block; text-align: center; font-size: 10px; color: var(--ok); font-weight: 600; height: 12px; }
 
   .row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
   .row + .row { border-top: 1px solid var(--panel-edge); }
@@ -173,7 +142,7 @@
 
   .split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--card); margin-bottom: 8px; }
   .split i { display: block; }
-  .split i.early { background: var(--rest); }
+  .split i.early { background: var(--ok); }
   .split i.on_time { background: var(--accent); }
   .split i.late { background: var(--bad); }
   .legend { display: flex; gap: 12px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
@@ -205,7 +174,7 @@
   #log .row .took { font-variant-numeric: tabular-nums; flex: none; width: 62px; text-align: right; }
   #log .row button { padding: 1px 7px; border-color: transparent; flex: none; }
   #log .row button:hover { color: var(--bad); border-color: var(--bad); }
-  .moment .kind { color: var(--rest); border-color: var(--rest); }
+  .moment .kind { color: var(--ok); border-color: var(--ok); }
 </style>
 </head>
 <body>
@@ -235,18 +204,18 @@
 
 <main>
   <div id="tiles">
-    <div class="card tile"><h2>Tracked</h2><b id="t-tracked">0m</b><em id="t-range"></em></div>
-    <div class="card tile">
+    <div class="panel tile"><h2>Tracked</h2><b id="t-tracked">0m</b><em id="t-range"></em></div>
+    <div class="panel tile">
       <h2>Average<button id="per-day-mode">per day</button></h2>
       <b id="t-average">0m</b><em id="t-average-note"></em>
     </div>
-    <div class="card tile"><h2>Created</h2><b id="t-created">0</b><em>tasks</em></div>
-    <div class="card tile"><h2>Completed</h2><b id="t-done">0</b><em>tasks</em></div>
-    <div class="card tile"><h2>Completion</h2><b id="t-rate">0%</b><em>of what was created</em></div>
+    <div class="panel tile"><h2>Created</h2><b id="t-created">0</b><em>tasks</em></div>
+    <div class="panel tile"><h2>Completed</h2><b id="t-done">0</b><em>tasks</em></div>
+    <div class="panel tile"><h2>Completion</h2><b id="t-rate">0%</b><em>of what was created</em></div>
   </div>
 
   <div class="grid">
-    <div class="card" style="grid-column: 1 / -1">
+    <div class="panel" style="grid-column: 1 / -1">
       <h2>Your work rhythm</h2>
       <div id="insight"></div>
       <div class="heat" id="heat"></div>
@@ -254,12 +223,12 @@
   </div>
 
   <div class="grid">
-    <div class="card"><h2>Time logged &amp; tasks completed</h2><div id="series"></div></div>
-    <div class="card"><h2>By task</h2><div id="by-task"></div></div>
-    <div class="card"><h2>By tag</h2><div id="by-tag"></div></div>
-    <div class="card"><h2>By plugin</h2><div id="by-type"></div></div>
-    <div class="card"><h2>By source</h2><div id="by-source"></div></div>
-    <div class="card">
+    <div class="panel"><h2>Time logged &amp; tasks completed</h2><div id="series"></div></div>
+    <div class="panel"><h2>By task</h2><div id="by-task"></div></div>
+    <div class="panel"><h2>By tag</h2><div id="by-tag"></div></div>
+    <div class="panel"><h2>By plugin</h2><div id="by-type"></div></div>
+    <div class="panel"><h2>By source</h2><div id="by-source"></div></div>
+    <div class="panel">
       <h2>Completion timing</h2>
       <div id="timing"></div>
       <div class="counts">
@@ -267,7 +236,7 @@
         <div id="stuck-box"><b id="stuck">0</b><em>stuck — no activity</em></div>
       </div>
     </div>
-    <div class="card">
+    <div class="panel">
       <h2>Streak</h2>
       <div class="modes">
         <span data-mode="completion" class="on">Completion</span>
@@ -280,7 +249,7 @@
   </div>
 
   <div class="grid">
-    <div class="card" style="grid-column: 1 / -1"><h2>Log</h2><div id="log"></div></div>
+    <div class="panel" style="grid-column: 1 / -1"><h2>Log</h2><div id="log"></div></div>
   </div>
 </main>
 
@@ -395,7 +364,7 @@ function renderSeries(data) {
     slot.appendChild(el("b", null, point.done ? String(point.done) : ""));
     const bar = el("i");
     bar.style.height = `${Math.round((point.seconds / peak) * 100)}%`;
-    if (point.key === today) bar.style.background = "var(--rest)";
+    if (point.key === today) bar.style.background = "var(--ok)";
     slot.appendChild(bar);
     slot.appendChild(el("u", null, wide ? point.key.slice(5) : point.key.slice(5, 7)));
     bars.appendChild(slot);

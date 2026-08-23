@@ -1,0 +1,116 @@
+:root {
+	--bg: #16181d;
+	--panel: #1e2127;
+	--panel-edge: #2b2f38;
+	--card: #262a33;
+	--card-edge: #343945;
+	--text: #e6e8ec;
+	--muted: #8b93a3;
+	--accent: #4e96e6;
+	--on-accent: #0d1117;
+	--ok: #57b98a;
+	--warn: #e0a458;
+	--bad: #e2686d;
+	--radius: 8px;
+	--radius-small: 6px;
+	--font: 14px "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font: var(--font);
+}
+
+h2 {
+	font-size: 11px;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+	color: var(--muted);
+	margin: 0 0 10px;
+}
+
+button {
+	background: var(--card);
+	color: var(--text);
+	border: 1px solid var(--card-edge);
+	border-radius: var(--radius-small);
+	padding: 6px 12px;
+	font: inherit;
+	cursor: pointer;
+}
+
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+
+button.primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--on-accent);
+	font-weight: 600;
+}
+
+button.link {
+	background: none;
+	border: none;
+	color: var(--muted);
+	padding: 2px 6px;
+}
+
+button.link:hover { color: var(--text); }
+
+input, textarea, select {
+	background: var(--card);
+	border: 1px solid var(--card-edge);
+	border-radius: var(--radius-small);
+	color: var(--text);
+	font: inherit;
+	padding: 6px 10px;
+}
+
+input:focus, textarea:focus, select:focus {
+	border-color: var(--accent);
+	outline: none;
+}
+
+input[type=checkbox] {
+	width: 17px;
+	height: 17px;
+	padding: 0;
+	accent-color: var(--accent);
+}
+
+/* A surface class is named for the token it paints. */
+.card {
+	background: var(--card);
+	border: 1px solid var(--card-edge);
+	border-radius: var(--radius);
+}
+
+.panel {
+	background: var(--panel);
+	border: 1px solid var(--panel-edge);
+	border-radius: var(--radius);
+}
+
+.tag {
+	border: 1px solid var(--card-edge);
+	color: var(--muted);
+	border-radius: 999px;
+	padding: 1px 8px;
+	font-size: 11px;
+}
+
+.tag.ok { color: var(--ok); border-color: var(--ok); }
+.tag.warn { color: var(--warn); border-color: var(--warn); }
+.tag.bad { color: var(--bad); border-color: var(--bad); }
+.tag.accent { color: var(--accent); border-color: var(--accent); }
+
+.empty {
+	color: var(--muted);
+	font-size: 13px;
+	padding: 6px 2px;
+}

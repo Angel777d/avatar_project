@@ -5,11 +5,36 @@ from typing import Any, Mapping, Optional, Sequence, Union
 
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineCore import QWebEngineScript
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 ASSETS = Path(__file__).resolve().parent / "assets"
+THEME = ASSETS / "theme.css"
 SHARED = (ASSETS / "editor.css", ASSETS / "editor.js")
+
+
+def style_script(path: Path, name: str) -> QWebEngineScript:
+	"""The theme has to exist before the page's own style element is parsed, or it wins ties it should lose."""
+	# The document is empty at DocumentCreation — head arrives later, but still before
+	# the page's own style element, which is what keeps the theme first in the cascade.
+	source = (
+		"(() => {"
+		f"const css = {json.dumps(path.read_text(encoding='utf-8'))};"
+		"const put = () => { if (!document.head) return false;"
+		"const style = document.createElement('style'); style.textContent = css;"
+		"document.head.insertBefore(style, document.head.firstChild); return true; };"
+		"if (put()) return;"
+		"const watch = new MutationObserver(() => { if (put()) watch.disconnect(); });"
+		"watch.observe(document, { childList: true, subtree: true }); })()"
+	)
+	script = QWebEngineScript()
+	script.setName(name)
+	script.setSourceCode(source)
+	script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+	script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+	script.setRunsOnSubFrames(False)
+	return script
 
 
 def await_signal(signal) -> asyncio.Future:
@@ -56,6 +81,7 @@ class HtmlPage(QWidget):
 	def build(self) -> QWebEngineView:
 		if self.view is None:
 			self.view = QWebEngineView(self)
+			self.view.page().scripts().insert(style_script(THEME, "avatar.theme"))
 			self.channel = QWebChannel(self.view.page())
 			for name, obj in self.__objects.items():
 				self.channel.registerObject(name, obj)

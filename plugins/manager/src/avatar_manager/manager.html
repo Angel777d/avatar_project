@@ -4,25 +4,7 @@
 <meta charset="utf-8">
 <title>Plugins</title>
 <style>
-  :root {
-    --bg: #16181d;
-    --panel: #1e2127;
-    --panel-edge: #2b2f38;
-    --card: #262a33;
-    --card-edge: #343945;
-    --text: #e6e8ec;
-    --muted: #8b93a3;
-    --accent: #4e96e6;
-    --ok: #57b98a;
-    --warn: #d8a657;
-    --bad: #e06c75;
-  }
-  * { box-sizing: border-box; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 14px "Segoe UI", system-ui, sans-serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -38,21 +20,6 @@
   }
   header h1 { font-size: 15px; font-weight: 600; margin: 0; flex: 1; }
 
-  button {
-    background: var(--card);
-    color: var(--text);
-    border: 1px solid var(--card-edge);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font: inherit;
-    cursor: pointer;
-  }
-  button:hover:not(:disabled) { border-color: var(--accent); }
-  button:disabled { opacity: .45; cursor: default; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
-  button.link { background: none; border: none; color: var(--muted); padding: 2px 6px; }
-  button.link:hover { color: var(--text); }
-
   #status {
     padding: 8px 16px;
     font-size: 13px;
@@ -67,21 +34,11 @@
 
   main { flex: 1; overflow-y: auto; padding: 16px; }
   section + section { margin-top: 26px; }
-  h2 {
-    font-size: 11px;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 0 0 10px;
-  }
 
   .plugin {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    background: var(--card);
-    border: 1px solid var(--card-edge);
-    border-radius: 8px;
     padding: 12px 14px;
     margin-bottom: 8px;
   }
@@ -90,19 +47,11 @@
   .plugin .title { font-weight: 600; }
   .plugin .summary { color: var(--muted); font-size: 13px; margin-top: 3px; }
   .plugin .meta { color: var(--muted); font-size: 12px; margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .tag { border: 1px solid var(--card-edge); border-radius: 4px; padding: 1px 6px; }
-  .tag.restart { color: var(--warn); border-color: var(--warn); }
-  .tag.orphan { color: var(--warn); border-color: var(--warn); }
-
-  input[type=checkbox] { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--accent); }
-
+    
   .registry {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--card);
-    border: 1px solid var(--card-edge);
-    border-radius: 8px;
     padding: 9px 12px;
     margin-bottom: 6px;
   }
@@ -118,18 +67,9 @@
   .registry .problem { color: var(--bad); font-size: 12px; margin-top: 2px; }
 
   .add { display: flex; gap: 8px; margin-top: 10px; }
-  .add input {
-    background: var(--panel);
-    border: 1px solid var(--card-edge);
-    border-radius: 6px;
-    color: var(--text);
-    font: inherit;
-    padding: 6px 10px;
-  }
-  .add input#r-name { width: 150px; }
-  .add input#r-where { flex: 1; min-width: 0; }
+  .add input { flex: 1; min-width: 0; }
+  .add input#r-name { flex: 0 0 150px; }
 
-  .empty { color: var(--muted); font-size: 13px; padding: 6px 2px; }
 </style>
 </head>
 <body>
@@ -221,13 +161,13 @@ function renderPlugins(state) {
   for (const plugin of state.plugins) {
     const pending = plugin.installed !== plugin.wanted;
     const row = document.createElement("div");
-    row.className = "plugin" + (pending ? " pending" : "");
+    row.className = "card plugin" + (pending ? " pending" : "");
 
     const meta = [];
     if (plugin.version) meta.push(`<span class="tag">${escape(plugin.version)}</span>`);
     if (plugin.registry) meta.push(`<span class="tag">${escape(plugin.registry)}</span>`);
-    if (plugin.restartNeeded) meta.push('<span class="tag restart">restart to change</span>');
-    if (plugin.orphan) meta.push('<span class="tag orphan">no registry</span>');
+    if (plugin.restartNeeded) meta.push('<span class="tag warn">restart to change</span>');
+    if (plugin.orphan) meta.push('<span class="tag warn">no registry</span>');
     if (pending) meta.push(`<span class="tag">${plugin.wanted ? "will install" : "will remove"}</span>`);
 
     row.innerHTML =
@@ -251,7 +191,7 @@ function renderRegistries(state) {
 
   for (const source of state.registries) {
     const row = document.createElement("div");
-    row.className = "registry";
+    row.className = "card registry";
     const kind = source.builtin ? "built in" : (source.local ? "local" : "remote");
     row.innerHTML =
       `<div class="body">` +

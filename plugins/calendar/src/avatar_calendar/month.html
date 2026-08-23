@@ -4,22 +4,7 @@
 <meta charset="utf-8">
 <title>Calendar</title>
 <style>
-  :root {
-    --bg: #16181d;
-    --panel: #1e2127;
-    --panel-edge: #2b2f38;
-    --card: #262a33;
-    --card-edge: #343945;
-    --text: #e6e8ec;
-    --muted: #8b93a3;
-    --accent: #4e96e6;
-  }
-  * { box-sizing: border-box; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 14px "Segoe UI", system-ui, sans-serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -77,7 +62,7 @@
   .num { font-size: 13px; }
   .dots { display: flex; flex-wrap: wrap; gap: 3px; }
   .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-  .dot.deadline { background: #e0a458; }
+  .dot.deadline { background: var(--warn); }
 
   #panel {
     width: 300px;
@@ -122,15 +107,8 @@
   }
   #notes .detail { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
   .tagstrip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-  .tag {
-    border: 1px solid var(--card-edge);
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 1px 8px;
-    font-size: 11px;
-  }
-  #notes li.deadline { border-left: 3px solid #e0a458; }
-  #notes li.deadline .detail { color: #e0a458; }
+  #notes li.deadline { border-left: 3px solid var(--warn); }
+  #notes li.deadline .detail { color: var(--warn); }
   #notes .kill {
     background: none;
     border: none;
@@ -140,7 +118,7 @@
     line-height: 1;
     padding: 0 2px;
   }
-  #notes .kill:hover { color: #e2686d; }
+  #notes .kill:hover { color: var(--bad); }
   #notes .empty { background: none; border: none; color: var(--muted); padding: 4px 2px; }
   .add { display: flex; padding: 0 10px 10px; }
   .add input {
