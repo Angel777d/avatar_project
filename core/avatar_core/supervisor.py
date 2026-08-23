@@ -63,6 +63,7 @@ class SupervisorSystem(System):
 			self.__read()
 
 		self.add_listener(events.REQUEST_PLUGINS_APPLY, self.__on_apply)
+		self.add_listener(events.REQUEST_PLUGINS_REFRESH, self.__on_refresh)
 		await self.__announce()
 
 	async def _update(self, delta_time: float):
@@ -106,6 +107,12 @@ class SupervisorSystem(System):
 		self.__status = {"busy": True, "step": "Asking the supervisor", "applied": [],
 		                 "deferred": [], "failed": [], "restart": False, "error": ""}
 		logger.info("asked the supervisor for revision %d, %d requirement(s)", self.__revision, len(wanted))
+		await self.__announce()
+
+	async def __on_refresh(self):
+		# Systems that start after this one miss the announcement made during start.
+		if self.__workspace is not None and self.__waiting == 0:
+			self.__read()
 		await self.__announce()
 
 	async def __poll(self) -> None:

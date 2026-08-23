@@ -54,6 +54,7 @@ class ManagerSystem(System):
 			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"manager": self.__bridge})
 
 		self.__reload(False)
+		await self.env.event_bus.dispatch_async(events.REQUEST_PLUGINS_REFRESH)
 
 	async def stop(self):
 		await super().stop()
