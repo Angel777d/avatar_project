@@ -57,7 +57,6 @@ echo installing the app and its plugins from github
     "avatar.ui @ git+%APP_REPO%@%BRANCH%#subdirectory=ui" ^
     "avatar.core @ git+%APP_REPO%@%BRANCH%#subdirectory=core" ^
     "avatar.host @ git+%APP_REPO%@%BRANCH%#subdirectory=host" ^
-    "avatar_shell @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/shell" ^
     "avatar_default @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/avatar" ^
     "avatar_kanban @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/kanban" ^
     "avatar_calendar @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/calendar" ^

@@ -15,7 +15,6 @@
 		"avatar.core @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_core-0.1.0-py3-none-any.whl",
 		"avatar.ui @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_ui-0.1.0-py3-none-any.whl",
 		"avatar.host @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_host-0.1.0-py3-none-any.whl",
-		"avatar_shell @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_shell-0.1.0-py3-none-any.whl",
 		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_default-0.1.0-py3-none-any.whl"
 	],
 

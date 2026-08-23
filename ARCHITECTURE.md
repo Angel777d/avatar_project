@@ -8,14 +8,14 @@
 | `avatar.api` | components, event names, `Env`, `TypeRegistry` | `angelovich.core` |
 | `avatar.core` | main loop, systems, plugin policy, storage, timers | `avatar.api` |
 | `avatar.host` | the Qt entry point: `QApplication`, `QtAsyncio`, `avatar_host` | `avatar.core`, PySide6 |
-| `avatar.ui` | `HtmlPage`, `TabbedWindow`, `HtmlWindow`, `TransparentWindow` | PySide6 |
-| `plugins/*` | `avatar_shell`, `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro`, `avatar_stats` | `avatar.api`, `avatar.ui` |
+| `avatar.ui` | `HtmlPage`, `TabbedWindow`, `HtmlWindow`, `TransparentWindow`; also a plugin itself, contributing `ShellSystem` | `avatar.api`, PySide6 |
+| `plugins/*` | `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro`, `avatar_stats` | `avatar.api`, `avatar.ui` |
 
 **Dependency rule: a plugin depends on the api and the ui, never on the core.** `avatar.api` re-exports everything a plugin needs, so `angelovich.core` is not a plugin dependency either. Core depends on api; api never on core.
 
 ## Plugin policy
 
-- Discovered through the `avatar.plugins` entry-point group. Distribution name, import name and entry-point name are the same string.
+- Discovered through the `avatar.plugins` entry-point group. Distribution name, import name and entry-point name are the same string — except `avatar.ui`, whose distribution name keeps the dot for consistency with the other core packages while its entry point and import name are `avatar_ui`.
 - The module exposes `plugin`, an instance of a `Plugin` subclass.
 - **A plugin has no lifecycle.** It is named by discovery, then asked once for the systems it contributes: `get_systems(env) -> [System]`. Everything with `start`/`update`/`stop`/`close` is a `System`.
 - `get_purpose()` returns tags; the first plugin to claim a tag wins and later claimants are skipped — that is how only one notifier or one UI loads.
@@ -69,13 +69,13 @@ Still missing for a real release: `avatar_project` is a private repository, so i
 
 ## Windows
 
-Plugins do not own windows. A plugin registers a page and asks for it by title; the `avatar_shell` plugin owns the windows and puts each page in a tab.
+Plugins do not own windows. A plugin registers a page and asks for it by title; `avatar.ui`'s own plugin, `ShellSystem`, owns the windows and puts each page in a tab.
 
 - One window per **window name**, default `""`. Pass a name to get a second window instead of another tab, and the name is the window's title: `avatar_stats` registers under `Statistics` and opens beside the main window rather than crowding it.
 - A window is created on the first `request.page.show` for it, and a tab's web view is built and loaded the first time that tab is shown — registering costs nothing.
 - Tabs appear in registration order, which follows plugin discovery order.
 - **Minimum window size is 720x520** and the default is 960x640, so a page must stay usable at the minimum: fill the space or centre in it. Pomodoro centres, kanban and calendar fill.
-- `avatar_shell` subscribes in its constructor rather than in `start()`, because plugins register their pages during `start()` and system start order follows discovery order.
+- `ShellSystem` subscribes in its constructor rather than in `start()`, because plugins register their pages during `start()` and system start order follows discovery order.
 
 ## Data
 

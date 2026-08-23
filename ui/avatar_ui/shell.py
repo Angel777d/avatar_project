@@ -4,6 +4,7 @@ from typing import Dict, List, Mapping, Optional, Tuple, Union
 from PySide6.QtCore import QObject
 
 from avatar_api import Env, System, events
+
 from avatar_ui.page import HtmlPage
 from avatar_ui.tabs import TabbedWindow
 
