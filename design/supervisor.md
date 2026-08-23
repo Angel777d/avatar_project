@@ -130,6 +130,8 @@ Entries are PEP 508 strings, checked against the allowlist below before anything
 
 **Deferred is not failed.** A requirement that could not be applied to the live process is left in `plugins.json` untouched, so the next start installs it through the ordinary path. The distinction matters to the caller: a failure is worth retracting, a deferral is already scheduled.
 
+**A local path in `packages` defers every live change.** The resolver cannot tell that a directory install is unchanged, so it reports one as reinstalled; a development config names local paths, those distributions are imported, and the gate correctly refuses to touch them. Live installation is therefore a property of a release install and not of a checkout — which is the honest answer, since a path package genuinely might have changed on disk since it was installed.
+
 **Deferral is all-or-nothing within one request.** A resolution is a single answer over the whole set, so when it touches loaded code there is no honest way to say which requirement was to blame — everything pending is deferred together. Attributing it per requirement would mean resolving each one alone, and the coarse answer costs one restart rather than several.
 
 ## Requirements

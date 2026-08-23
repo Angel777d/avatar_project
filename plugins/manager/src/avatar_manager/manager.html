@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plugins</title>
+<style>
+  :root {
+    --bg: #16181d;
+    --panel: #1e2127;
+    --panel-edge: #2b2f38;
+    --card: #262a33;
+    --card-edge: #343945;
+    --text: #e6e8ec;
+    --muted: #8b93a3;
+    --accent: #4e96e6;
+    --ok: #57b98a;
+    --warn: #d8a657;
+    --bad: #e06c75;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px "Segoe UI", system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--panel-edge);
+    background: var(--panel);
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; flex: 1; }
+
+  button {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--card-edge);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+  button.link { background: none; border: none; color: var(--muted); padding: 2px 6px; }
+  button.link:hover { color: var(--text); }
+
+  #status {
+    padding: 8px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--panel-edge);
+    display: none;
+  }
+  #status.show { display: block; }
+  #status.busy { color: var(--accent); }
+  #status.warn { color: var(--warn); }
+  #status.bad { color: var(--bad); }
+  #status.ok { color: var(--ok); }
+
+  main { flex: 1; overflow-y: auto; padding: 16px; }
+  section + section { margin-top: 26px; }
+  h2 {
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+
+  .plugin {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .plugin.pending { border-color: var(--accent); }
+  .plugin .body { flex: 1; min-width: 0; }
+  .plugin .title { font-weight: 600; }
+  .plugin .summary { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .plugin .meta { color: var(--muted); font-size: 12px; margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .tag { border: 1px solid var(--card-edge); border-radius: 4px; padding: 1px 6px; }
+  .tag.restart { color: var(--warn); border-color: var(--warn); }
+  .tag.orphan { color: var(--warn); border-color: var(--warn); }
+
+  input[type=checkbox] { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--accent); }
+
+  .registry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 6px;
+  }
+  .registry .body { flex: 1; min-width: 0; }
+  .registry .where {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .registry .problem { color: var(--bad); font-size: 12px; margin-top: 2px; }
+
+  .add { display: flex; gap: 8px; margin-top: 10px; }
+  .add input {
+    background: var(--panel);
+    border: 1px solid var(--card-edge);
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+    padding: 6px 10px;
+  }
+  .add input#r-name { width: 150px; }
+  .add input#r-where { flex: 1; min-width: 0; }
+
+  .empty { color: var(--muted); font-size: 13px; padding: 6px 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Plugins</h1>
+  <button id="refresh" class="link">Refresh</button>
+  <button id="revert">Revert</button>
+  <button id="apply" class="primary">Apply</button>
+</header>
+
+<div id="status"></div>
+
+<main>
+  <section>
+    <h2>Available</h2>
+    <div id="plugins"></div>
+  </section>
+
+  <section>
+    <h2>Registries</h2>
+    <div id="registries"></div>
+    <div class="add">
+      <input id="r-name" placeholder="name">
+      <input id="r-where" placeholder="https://… or a path to a local registry.json">
+      <button id="r-add">Add</button>
+    </div>
+  </section>
+</main>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+let bridge = null;
+
+function escape(text) {
+  const node = document.createElement("div");
+  node.textContent = text === undefined || text === null ? "" : String(text);
+  return node.innerHTML;
+}
+
+function renderStatus(state) {
+  const status = document.getElementById("status");
+  const parts = [];
+  let tone = "ok";
+
+  if (!state.status.available) {
+    status.className = "show warn";
+    status.textContent = "No supervisor is running this app, so plugins cannot be changed here.";
+    return;
+  }
+
+  if (state.loading) { parts.push("Reading registries…"); tone = "busy"; }
+  if (state.status.busy) { parts.push(state.status.step || "Working…"); tone = "busy"; }
+
+  if (!state.status.busy) {
+    const applied = state.status.applied || [];
+    const deferred = state.status.deferred || [];
+    const failed = state.status.failed || [];
+    if (applied.length) parts.push(`Installed ${applied.length}.`);
+    if (deferred.length) {
+      parts.push(`${deferred.length} waiting for a restart.`);
+      tone = "warn";
+    }
+    if (failed.length) {
+      parts.push(`Could not install: ${failed.map(escape).join(", ")}.`);
+      tone = "bad";
+    }
+    if (state.status.error) { parts.push(escape(state.status.error)); tone = "bad"; }
+  }
+
+  if (!parts.length) {
+    status.className = "";
+    status.textContent = "";
+    return;
+  }
+  status.className = "show " + tone;
+  status.innerHTML = parts.join(" ");
+}
+
+function renderPlugins(state) {
+  const host = document.getElementById("plugins");
+  host.innerHTML = "";
+
+  if (!state.plugins.length) {
+    host.innerHTML = '<div class="empty">No registry offers anything yet.</div>';
+    return;
+  }
+
+  for (const plugin of state.plugins) {
+    const pending = plugin.installed !== plugin.wanted;
+    const row = document.createElement("div");
+    row.className = "plugin" + (pending ? " pending" : "");
+
+    const meta = [];
+    if (plugin.version) meta.push(`<span class="tag">${escape(plugin.version)}</span>`);
+    if (plugin.registry) meta.push(`<span class="tag">${escape(plugin.registry)}</span>`);
+    if (plugin.restartNeeded) meta.push('<span class="tag restart">restart to change</span>');
+    if (plugin.orphan) meta.push('<span class="tag orphan">no registry</span>');
+    if (pending) meta.push(`<span class="tag">${plugin.wanted ? "will install" : "will remove"}</span>`);
+
+    row.innerHTML =
+      `<input type="checkbox" data-name="${escape(plugin.name)}" ${plugin.wanted ? "checked" : ""}>` +
+      `<div class="body">` +
+        `<div class="title">${escape(plugin.title)}</div>` +
+        `<div class="summary">${escape(plugin.summary)}</div>` +
+        `<div class="meta">${meta.join("")}</div>` +
+      `</div>`;
+    host.appendChild(row);
+  }
+
+  host.querySelectorAll("input[type=checkbox]").forEach((box) => {
+    box.addEventListener("change", () => bridge.toggle(box.dataset.name, box.checked));
+  });
+}
+
+function renderRegistries(state) {
+  const host = document.getElementById("registries");
+  host.innerHTML = "";
+
+  for (const source of state.registries) {
+    const row = document.createElement("div");
+    row.className = "registry";
+    const kind = source.builtin ? "built in" : (source.local ? "local" : "remote");
+    row.innerHTML =
+      `<div class="body">` +
+        `<div><b>${escape(source.name)}</b> <span class="tag">${kind}</span> ` +
+        `<span class="tag">${source.count} plugin${source.count === 1 ? "" : "s"}</span></div>` +
+        `<div class="where">${escape(source.location)}</div>` +
+        (source.problem ? `<div class="problem">${escape(source.problem)}</div>` : "") +
+      `</div>` +
+      (source.builtin ? "" : `<button class="link" data-remove="${escape(source.name)}">Remove</button>`);
+    host.appendChild(row);
+  }
+
+  host.querySelectorAll("button[data-remove]").forEach((button) => {
+    button.addEventListener("click", () => bridge.remove_registry(button.dataset.remove));
+  });
+}
+
+function render(state) {
+  renderStatus(state);
+  renderPlugins(state);
+  renderRegistries(state);
+
+  const blocked = state.status.busy || !state.status.available;
+  document.getElementById("apply").disabled = blocked || !state.dirty;
+  document.getElementById("revert").disabled = blocked || !state.dirty;
+  document.getElementById("refresh").disabled = state.loading;
+}
+
+function refresh() {
+  bridge.snapshot((payload) => render(JSON.parse(payload)));
+}
+
+new QWebChannel(qt.webChannelTransport, (channel) => {
+  bridge = channel.objects.manager;
+  bridge.changed.connect(refresh);
+
+  document.getElementById("apply").addEventListener("click", () => bridge.apply());
+  document.getElementById("revert").addEventListener("click", () => bridge.revert());
+  document.getElementById("refresh").addEventListener("click", () => bridge.refresh());
+
+  document.getElementById("r-add").addEventListener("click", () => {
+    const name = document.getElementById("r-name");
+    const where = document.getElementById("r-where");
+    if (!name.value.trim() || !where.value.trim()) return;
+    bridge.add_registry(name.value, where.value);
+    name.value = "";
+    where.value = "";
+  });
+
+  refresh();
+});
+</script>
+</body>
+</html>

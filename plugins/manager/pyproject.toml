@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avatar_manager"
+version = "0.1.0"
+description = "Plugin manager for the avatar project"
+
+authors = [
+    { name = "Angelovich", email = "angel777da@gmail.com" },
+]
+
+requires-python = ">=3.13"
+dependencies = [
+    "avatar.api >= 0.1.0",
+    "avatar.ui >= 0.1.0",
+    "PySide6 >= 6.9",
+]
+
+license = "MIT"
+
+[project.entry-points.'avatar.plugins']
+avatar_manager = 'avatar_manager'
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+avatar_manager = ["*.html", "*.json"]

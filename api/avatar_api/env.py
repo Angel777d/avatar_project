@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from typing import Optional
 
 from angelovich.core.Environment import Environment
@@ -13,3 +14,4 @@ class Env(Environment):
 		self.registry: TypeRegistry = TypeRegistry()
 		self.migrations: MigrationRegistry = MigrationRegistry()
 		self.close_event: Optional[asyncio.Event] = None
+		self.workspace: Optional[Path] = None

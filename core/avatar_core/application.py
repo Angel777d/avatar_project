@@ -10,6 +10,7 @@ from avatar_api import events
 from avatar_api.env import Env
 from avatar_core.core_system import CoreSystem
 from avatar_core.storage import Storage
+from avatar_core.supervisor import SupervisorSystem
 from avatar_core.timer_system import TimerSystem
 from avatar_core.plugin_policy import PLUGINS_ENABLED_BY_DEFAULT, select_plugins
 
@@ -31,7 +32,7 @@ class Application:
 		self.env = env
 		self.__tick_time = tick_time
 		self.storage = storage if storage is not None else Storage()
-		self.systems: List[System] = [CoreSystem(env), TimerSystem(env)] + list(systems)
+		self.systems: List[System] = [CoreSystem(env), SupervisorSystem(env), TimerSystem(env)] + list(systems)
 		self.plugins: List[Plugin] = select_plugins(
 			discover_plugins(PLUGIN_GROUP, disabled_plugins),
 			enabled_plugins,

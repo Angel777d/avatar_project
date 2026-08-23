@@ -1,0 +1,42 @@
+{
+	"name": "Avatar plugins",
+	"version": 1,
+	"plugins": [
+		{
+			"name": "avatar_kanban",
+			"title": "Kanban",
+			"summary": "A board of cards in columns, with deadlines and tags.",
+			"version": "0.1.0",
+			"requirement": "avatar_kanban==0.1.0",
+			"homepage": "https://github.com/Angel777d/avatar_project",
+			"restartNeeded": false
+		},
+		{
+			"name": "avatar_calendar",
+			"title": "Calendar",
+			"summary": "A month view over dated notes.",
+			"version": "0.1.0",
+			"requirement": "avatar_calendar==0.1.0",
+			"homepage": "https://github.com/Angel777d/avatar_project",
+			"restartNeeded": false
+		},
+		{
+			"name": "avatar_pomodoro",
+			"title": "Pomodoro",
+			"summary": "A work and rest timer that logs the time it tracks.",
+			"version": "0.1.0",
+			"requirement": "avatar_pomodoro==0.1.0",
+			"homepage": "https://github.com/Angel777d/avatar_project",
+			"restartNeeded": false
+		},
+		{
+			"name": "avatar_stats",
+			"title": "Statistics",
+			"summary": "A dashboard over the time log, in its own window.",
+			"version": "0.1.0",
+			"requirement": "avatar_stats==0.1.0",
+			"homepage": "https://github.com/Angel777d/avatar_project",
+			"restartNeeded": false
+		}
+	]
+}
