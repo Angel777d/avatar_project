@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace AvatarLauncher;
+namespace Supervisor;
 
 internal sealed class ProcessGroup : IDisposable
 {

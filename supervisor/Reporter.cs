@@ -1,15 +1,70 @@
 using System.Windows.Forms;
 
-namespace AvatarLauncher;
+namespace Supervisor;
+
+internal interface IReporter
+{
+	void Step(string message);
+	void Fail(string message);
+	void Run(Task work);
+}
+
+internal sealed class SilentReporter : IReporter
+{
+	public void Step(string message)
+	{
+	}
+
+	public void Fail(string message)
+	{
+	}
+
+	public void Run(Task work) => work.Wait();
+}
+
+internal sealed class ConsoleReporter : IReporter
+{
+	public void Step(string message) => Console.WriteLine(message);
+
+	public void Fail(string message) => Console.Error.WriteLine(message);
+
+	public void Run(Task work) => work.Wait();
+}
+
+internal sealed class WindowReporter : IReporter, IDisposable
+{
+	private readonly string __title;
+	private ProgressWindow? __window;
+
+	public WindowReporter(string title) => __title = title;
+
+	public void Step(string message) => __window?.Report(message);
+
+	public void Fail(string message)
+	{
+		__window?.Report(message);
+		MessageBox.Show(message, __title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+	}
+
+	public void Run(Task work)
+	{
+		__window = new ProgressWindow(__title);
+		__window.RunUntil(work);
+		__window.Dispose();
+		__window = null;
+	}
+
+	public void Dispose() => __window?.Dispose();
+}
 
 internal sealed class ProgressWindow : Form
 {
 	private readonly Label __label = new();
 	private readonly ProgressBar __bar = new();
 
-	public ProgressWindow()
+	public ProgressWindow(string title)
 	{
-		Text = "Avatar";
+		Text = title;
 		FormBorderStyle = FormBorderStyle.FixedDialog;
 		StartPosition = FormStartPosition.CenterScreen;
 		MaximizeBox = false;

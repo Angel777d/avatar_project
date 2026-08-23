@@ -5,8 +5,8 @@
     <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>avatar</AssemblyName>
-    <RootNamespace>AvatarLauncher</RootNamespace>
+    <AssemblyName>supervisor</AssemblyName>
+    <RootNamespace>Supervisor</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>

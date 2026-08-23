@@ -1,190 +1,111 @@
-using System.Diagnostics;
-
-namespace AvatarLauncher;
+namespace Supervisor;
 
 internal static class Program
 {
-	private const string MutexName = @"Global\avatar_project.launcher";
-
-	private static Process? __child;
-	private static ProcessGroup? __group;
+	private static Children? __children;
 
 	[STAThread]
 	private static int Main(string[] args)
 	{
-		using var single = new Mutex(true, MutexName, out var owned);
-		if (!owned)
+		var workspace = Argument(args, "--workspace") ?? AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+		var reporter = Pick(args, "Supervisor");
+
+		using var single = new Mutex(false, $"Local\\supervisor.{Requirements.Fingerprint(workspace.ToLowerInvariant())}", out _);
+		if (!single.WaitOne(0))
 			return 0;
 
-		var directory = ConfigDirectory(args);
-		var options = Options.Load(directory);
-		var log = new Log(options.LogPath);
+		var log = new Log(Path.Combine(workspace, "supervisor.log"));
 
-		if (options.ConfigProblem is not null)
-		{
-			log.Write($"cannot start: {options.ConfigProblem}");
-			return 2;
-		}
+		var config = Config.Load(Path.Combine(workspace, Config.FileName), out var problem);
+		if (config is null || problem is not null)
+			return Refuse(log, reporter, problem ?? "the configuration is unusable");
 
-		var bootstrap = Bootstrap.Load(Path.Combine(directory, Bootstrap.FileName), out var bootstrapProblem);
-		if (bootstrapProblem is not null)
-		{
-			log.Write($"cannot start: {bootstrapProblem}");
-			return 2;
-		}
+		var plan = Plan.Build(config, workspace, out problem);
+		if (plan is null || problem is not null)
+			return Refuse(log, reporter, problem ?? "the configuration is unusable");
 
-		var arguments = new List<string>();
-		if (bootstrap is not null)
-		{
-			if (!Provision(bootstrap, log))
-				return 4;
-			options.Python = bootstrap.VenvPython;
-			options.WorkingDirectory = bootstrap.Directory;
-			arguments = bootstrap.EntryArguments();
-		}
-		else
-		{
-			arguments.Add(options.Script);
-		}
+		if (reporter is WindowReporter)
+			reporter = new WindowReporter(plan.Title);
 
-		var problem = options.Validate(bootstrap is null);
-		if (problem is not null)
-		{
-			log.Write($"cannot start: {problem}");
-			return 2;
-		}
+		log.Write($"supervisor start in {workspace}");
 
-		if (arguments.Count == 0)
-		{
-			log.Write("cannot start: nothing to run, set an entry module or script");
-			return 2;
-		}
-
-		AppDomain.CurrentDomain.ProcessExit += (_, _) => Stop();
+		var state = State.Load(plan.StatePath);
+		var uv = new Uv(plan, log);
+		var runtime = new Runtime(plan, state, uv, log);
+		var exchange = new Exchange(plan, runtime, log);
 
 		using var group = new ProcessGroup();
-		__group = group;
+		AppDomain.CurrentDomain.ProcessExit += (_, _) => __children?.Stop();
 
-		log.Write($"launcher start: {options.Python} {string.Join(" ", arguments)}");
-
-		var attempt = 0;
 		while (true)
 		{
-			var code = Run(options, arguments, log);
-			if (code == 0)
+			string? trouble = null;
+			var ok = false;
+			reporter.Run(Task.Run(() =>
 			{
-				log.Write("avatar closed");
-				return 0;
+				try
+				{
+					ok = runtime.Provision(reporter.Step, out trouble);
+				}
+				catch (Exception ex)
+				{
+					log.Write($"provisioning threw: {ex}");
+					trouble = ex.Message;
+				}
+			}));
+
+			if (!ok)
+				return Refuse(log, reporter, trouble ?? "could not prepare the runtime");
+			if (trouble is not null)
+				reporter.Fail(trouble);
+
+			var children = new Children(plan, log, group);
+			__children = children;
+			children.Start();
+
+			while (children.End == SessionEnd.Running)
+			{
+				exchange.Poll();
+				Thread.Sleep(plan.Poll);
 			}
 
-			if (!options.RestartOnFailure || attempt >= options.MaxRestarts)
-			{
-				log.Write($"avatar failed with {code}, giving up after {attempt} restarts");
-				return code;
-			}
+			children.Stop();
+			__children = null;
 
-			attempt++;
-			log.Write($"avatar failed with {code}, restart {attempt} of {options.MaxRestarts}");
-			Thread.Sleep(TimeSpan.FromSeconds(options.RestartDelaySeconds));
+			switch (children.End)
+			{
+				case SessionEnd.Closed:
+					log.Write("closed");
+					return 0;
+				case SessionEnd.GaveUp:
+					log.Write($"giving up with {children.Code}");
+					return children.Code == 0 ? 1 : children.Code;
+				default:
+					log.Write("restarting");
+					continue;
+			}
 		}
 	}
 
-	private static bool Provision(Bootstrap bootstrap, Log log)
+	private static int Refuse(Log log, IReporter reporter, string problem)
 	{
-		if (bootstrap.IsReady())
-		{
-			log.Write("runtime is ready");
-			return true;
-		}
-
-		var window = new ProgressWindow();
-		var work = Task.Run(() =>
-		{
-			try
-			{
-				return bootstrap.Ensure(log, window.Report);
-			}
-			catch (Exception ex)
-			{
-				log.Write($"preparing the runtime failed: {ex}");
-				return false;
-			}
-		});
-		window.RunUntil(work);
-		window.Dispose();
-
-		if (work.Result)
-			return true;
-
-		log.Write("could not prepare the runtime");
-		return false;
+		log.Write($"cannot start: {problem}");
+		reporter.Fail($"Cannot start: {problem}");
+		return 2;
 	}
 
-	private static string ConfigDirectory(string[] args)
+	private static IReporter Pick(string[] args, string title)
 	{
-		for (var i = 0; i < args.Length - 1; i++)
-			if (args[i] is "--config" or "-c")
-				return args[i + 1];
-		return AppContext.BaseDirectory;
+		if (args.Contains("--silent"))
+			return new SilentReporter();
+		return args.Contains("--console") ? new ConsoleReporter() : new WindowReporter(title);
 	}
 
-	private static int Run(Options options, List<string> arguments, Log log)
+	private static string? Argument(string[] args, string name)
 	{
-		var info = new ProcessStartInfo(options.Python)
-		{
-			WorkingDirectory = options.WorkingDirectory,
-			UseShellExecute = false,
-			CreateNoWindow = true,
-			RedirectStandardOutput = true,
-			RedirectStandardError = true,
-		};
-		foreach (var argument in arguments)
-			info.ArgumentList.Add(argument);
-
-		using var process = new Process { StartInfo = info, EnableRaisingEvents = true };
-		process.OutputDataReceived += (_, args) =>
-		{
-			if (args.Data is not null)
-				log.Write($"out | {args.Data}");
-		};
-		process.ErrorDataReceived += (_, args) =>
-		{
-			if (args.Data is not null)
-				log.Write($"err | {args.Data}");
-		};
-
-		try
-		{
-			process.Start();
-		}
-		catch (Exception ex)
-		{
-			log.Write($"cannot start avatar: {ex.Message}");
-			return 3;
-		}
-
-		__child = process;
-		if (__group is not null && !__group.Add(process))
-			log.Write("avatar is not tied to the launcher, it can outlive it");
-		process.BeginOutputReadLine();
-		process.BeginErrorReadLine();
-		process.WaitForExit();
-		__child = null;
-
-		return process.ExitCode;
-	}
-
-	private static void Stop()
-	{
-		var child = __child;
-		if (child is null || child.HasExited)
-			return;
-		try
-		{
-			child.Kill(true);
-		}
-		catch (Exception)
-		{
-		}
+		for (var index = 0; index < args.Length - 1; index++)
+			if (args[index] == name)
+				return args[index + 1];
+		return null;
 	}
 }

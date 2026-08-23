@@ -1,0 +1,33 @@
+{
+	"title": "Avatar (dev)",
+
+	"uv": {
+		"url": "https://github.com/astral-sh/uv/releases/download/0.12.5/uv-x86_64-pc-windows-msvc.zip",
+		"sha256": "4c4d49d8738847d9b71ba319e49a5688c93eac0fe6204b1df24e98528dddf39a"
+	},
+
+	"python": "3.13",
+	"index": "",
+
+	"packages": [
+		"D:/Work/py_core",
+		"D:/Work/avatar_project/api",
+		"D:/Work/avatar_project/core",
+		"D:/Work/avatar_project/ui",
+		"D:/Work/avatar_project/host",
+		"D:/Work/avatar_project/plugins/shell",
+		"D:/Work/avatar_project/plugins/avatar"
+	],
+
+	"processes": [
+		{
+			"name": "app",
+			"module": "avatar_host",
+			"required": true,
+			"restart": "never"
+		}
+	],
+
+	"restartCode": 75,
+	"pollSeconds": 1
+}

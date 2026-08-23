@@ -1,0 +1,37 @@
+{
+	"title": "Avatar",
+
+	"uv": {
+		"url": "https://github.com/astral-sh/uv/releases/download/0.12.5/uv-x86_64-pc-windows-msvc.zip",
+		"sha256": "4c4d49d8738847d9b71ba319e49a5688c93eac0fe6204b1df24e98528dddf39a"
+	},
+
+	"python": "3.13",
+	"index": "",
+
+	"packages": [
+		"angelovich.core==0.2.0",
+		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_api-0.1.0-py3-none-any.whl",
+		"avatar.core @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_core-0.1.0-py3-none-any.whl",
+		"avatar.ui @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_ui-0.1.0-py3-none-any.whl",
+		"avatar.host @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_host-0.1.0-py3-none-any.whl",
+		"avatar_shell @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_shell-0.1.0-py3-none-any.whl",
+		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_default-0.1.0-py3-none-any.whl"
+	],
+
+	"processes": [
+		{
+			"name": "app",
+			"module": "avatar_host",
+			"required": true,
+			"restart": "on-failure",
+			"maxRestarts": 3,
+			"windowSeconds": 60,
+			"backoffSeconds": 2,
+			"stopGraceSeconds": 5
+		}
+	],
+
+	"restartCode": 75,
+	"pollSeconds": 1
+}
