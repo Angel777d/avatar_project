@@ -2,11 +2,10 @@ from typing import List, Set
 
 from avatar_api import Env, Plugin, System
 
-from avatar_ui.system import UiSystem
-
 
 class UiPlugin(Plugin):
 	def get_systems(self, env: Env) -> List[System]:
+		from avatar_ui.system import UiSystem
 		return [UiSystem(env)]
 
 	@staticmethod

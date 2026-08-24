@@ -14,13 +14,12 @@ from avatar_ui.avatar_widget import AvatarWidget
 from avatar_ui.bridge import Bridge
 from avatar_ui.components import AvatarViewEC, RenderDirtyEC, TabViewEC, WindowEC
 from avatar_ui.page import HtmlPage
+from avatar_ui.render import AvatarView, PageView
 from avatar_ui.sync import Guarded
 from avatar_ui.tabs import TabbedWindow
 
 DEFAULT_WINDOW = ""
 POLL_S = 1 / 30
-
-PageState = Dict[str, Any]
 
 
 class UiSystem(System):
@@ -35,8 +34,8 @@ class UiSystem(System):
 		self.__app: Optional[QApplication] = None
 		self.__ready = threading.Event()
 
-		self.__pages: Guarded[Dict[int, PageState]] = Guarded({})
-		self.__avatar: Guarded[Optional[dict]] = Guarded(None)
+		self.__pages: Guarded[Dict[int, PageView]] = Guarded({})
+		self.__avatar: Guarded[Optional[AvatarView]] = Guarded(None)
 		self.__commands: "queue.SimpleQueue[Tuple]" = queue.SimpleQueue()
 
 		# built on the Qt thread only - never touched from the asyncio side
@@ -76,26 +75,29 @@ class UiSystem(System):
 			entity.remove_component(RenderDirtyEC)
 
 	def __sync_page(self, entity: Entity) -> None:
+		"""The only place a WindowEC/TabViewEC pair becomes a PageView - trivial field
+		copying, nothing the Qt side has to interpret."""
 		window = entity.get_component(WindowEC)
 		view = entity.get_component(TabViewEC)
 		pages = dict(self.__pages.get())
-		pages[entity.entity_id] = {
-			"title": window.title,
-			"window": window.window,
-			"path": view.path,
-			"channel": view.channel,
-			"snapshot": view.snapshot,
-			"methods": dict(view.methods),
-		}
+		pages[entity.entity_id] = PageView(
+			title=window.title,
+			window=window.window,
+			path=view.path,
+			channel=view.channel,
+			snapshot=view.snapshot,
+			methods=dict(view.methods),
+		)
 		self.__pages.set(pages)
 
 	def __sync_avatar(self, entity: Entity) -> None:
+		"""The only place an AvatarViewEC becomes an AvatarView."""
 		view = entity.get_component(AvatarViewEC)
-		self.__avatar.set({
-			"bubble": view.bubble,
-			"timer_progress": view.timer_progress,
-			"menu": list(view.menu),
-		})
+		self.__avatar.set(AvatarView(
+			bubble=view.bubble,
+			timer_progress=view.timer_progress,
+			menu=list(view.menu),
+		))
 
 	async def __on_show(self, title: str, window: str = DEFAULT_WINDOW):
 		self.__commands.put(("show", title, window))
@@ -117,7 +119,7 @@ class UiSystem(System):
 			page = self.__pages.get().get(entity_id)
 			if page is None:
 				return
-			event = page["methods"].get(method)
+			event = page.methods.get(method)
 			if not event:
 				return
 			try:
@@ -185,11 +187,11 @@ class UiSystem(System):
 		for entity_id, spec in self.__pages.get().items():
 			built = self.__built.get(entity_id)
 			if built is None:
-				window = self.__window(spec["window"])
+				window = self.__window(spec.window)
 				bridge = Bridge(entity_id, self)
-				html_page = window.add_page(spec["title"], spec["path"], {spec["channel"]: bridge})
-				bridge.push(spec["snapshot"])
+				html_page = window.add_page(spec.title, spec.path, {spec.channel: bridge})
+				bridge.push(spec.snapshot)
 				self.__built[entity_id] = (bridge, html_page)
 			else:
 				bridge, _ = built
-				bridge.push(spec["snapshot"])
+				bridge.push(spec.snapshot)

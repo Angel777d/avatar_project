@@ -8,8 +8,8 @@ from avatar_api import Entity, Env, System, events
 from avatar_api.components import MenuItemEC, NotificationEC, TimerEC
 from avatar_api.menu import menu_items
 
-from avatar_ui.avatar_widget import EVENT_CLICKED, EVENT_MOVED
 from avatar_ui.components import AvatarViewEC, RenderDirtyEC
+from avatar_ui.events import EVENT_CLICKED, EVENT_MOVED
 
 SOURCE = "avatar"
 SOURCE_CLICK = "avatar.click"

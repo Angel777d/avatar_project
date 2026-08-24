@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import (
@@ -14,10 +14,9 @@ from PySide6.QtGui import (
 	QRegion,
 )
 
+from avatar_ui.events import EVENT_CLICKED, EVENT_MOVED
+from avatar_ui.render import AvatarView
 from avatar_ui.transparent import TransparentWindow
-
-EVENT_CLICKED = "avatar.clicked"
-EVENT_MOVED = "avatar.moved"
 
 AVATAR_SIZE = 128
 RING_WIDTH = 4
@@ -51,14 +50,13 @@ class AvatarWidget(TransparentWindow):
 		self.place_bottom_right()
 		self.__apply_shape()
 
-	def apply(self, state: Optional[Dict[str, Any]]) -> None:
+	def apply(self, state: Optional[AvatarView]) -> None:
 		if state is None:
 			return
-		self.__timer_progress = state.get("timer_progress", -1.0)
-		self.__menu = list(state.get("menu", ()))
-		bubble = state.get("bubble", "")
-		if bubble != self.__bubble_text:
-			self.set_bubble(bubble)
+		self.__timer_progress = state.timer_progress
+		self.__menu = list(state.menu)
+		if state.bubble != self.__bubble_text:
+			self.set_bubble(state.bubble)
 
 	def advance(self, delta: float) -> None:
 		self.__phase += delta
