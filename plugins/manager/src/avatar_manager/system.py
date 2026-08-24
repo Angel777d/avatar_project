@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Set
 
 from avatar_api import Entity, Env, System, events
 from avatar_api.menu import add_menu_item
-from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
+from avatar_ui.components import RenderDirtyEC, TabEC, TabViewEC
 
 from avatar_manager import registries
 from avatar_manager.window import (
@@ -61,7 +61,7 @@ class ManagerSystem(System):
 
 	def __register(self):
 		self.__entity = self.env.data_storage.create_entity()
-		self.__entity.add_component(WindowEC(PAGE_TITLE))
+		self.__entity.add_component(TabEC(PAGE_TITLE))
 		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, json.dumps(self.snapshot()), METHODS))
 		self.__mark_dirty()
 

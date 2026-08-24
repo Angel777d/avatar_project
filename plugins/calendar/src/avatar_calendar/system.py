@@ -7,7 +7,7 @@ from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_api.tags import apply_tags, names_from, tags_of
 from avatar_api.timelog import DURATION, SOURCE, SPAN, STARTED, log_data, measure
-from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
+from avatar_ui.components import RenderDirtyEC, TabEC, TabViewEC
 
 from avatar_calendar.components import CalendarNoteEC
 from avatar_calendar.window import (
@@ -65,7 +65,7 @@ class CalendarSystem(System):
 
 	def __register(self):
 		self.__entity = self.env.data_storage.create_entity()
-		self.__entity.add_component(WindowEC(PAGE_TITLE))
+		self.__entity.add_component(TabEC(PAGE_TITLE))
 		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, self.__snapshot(), METHODS))
 		self.__mark_dirty()
 

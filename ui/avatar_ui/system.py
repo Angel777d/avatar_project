@@ -3,7 +3,7 @@ import json
 import logging
 import queue
 import threading
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from PySide6.QtWidgets import QApplication
 import PySide6.QtAsyncio as QtAsyncio
@@ -13,7 +13,15 @@ from avatar_api.action import trigger
 
 from avatar_ui.avatar_widget import AvatarWidget
 from avatar_ui.bridge import Bridge
-from avatar_ui.components import AvatarViewEC, RenderDirtyEC, TabViewEC, WindowEC
+from avatar_ui.components import (
+	DEFAULT_WINDOW,
+	AvatarViewEC,
+	CurrentTabEC,
+	RenderDirtyEC,
+	TabEC,
+	TabViewEC,
+	WindowEC,
+)
 from avatar_ui.page import HtmlPage
 from avatar_ui.render import AvatarView, PageView
 from avatar_ui.sync import Guarded
@@ -21,14 +29,19 @@ from avatar_ui.tabs import TabbedWindow
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_WINDOW = ""
 POLL_S = 1 / 30
+
+WATCHED = (WindowEC, CurrentTabEC, TabEC)
 
 
 class UiSystem(System):
 	"""Everything Qt lives on one dedicated thread with its own loop. The asyncio thread
 	that runs every other System never touches a widget - it only writes guarded copies
-	and posts events, both of which are safe to cross a thread boundary."""
+	and posts commands, both of which are safe to cross a thread boundary.
+
+	Windows and tabs are entities: a WindowEC entity is a window and losing it closes one,
+	the CurrentTabEC marker is which tab is up. ADDED/REMOVED on those collections is the
+	only change notification the storage offers, and it is exactly the one this needs."""
 
 	def __init__(self, env: Env):
 		super().__init__(env)
@@ -41,12 +54,14 @@ class UiSystem(System):
 
 		self.__pages: Guarded[Dict[int, PageView]] = Guarded({})
 		self.__avatar: Guarded[Optional[AvatarView]] = Guarded(None)
-		self.__commands: "queue.SimpleQueue[Tuple]" = queue.SimpleQueue()
+		self.__commands: "queue.SimpleQueue[Callable[[], None]]" = queue.SimpleQueue()
 
 		# built on the Qt thread only - never touched from the asyncio side
 		self.__windows: Dict[str, TabbedWindow] = {}
+		self.__window_names: Dict[int, str] = {}
 		self.__built: Dict[int, Tuple[Bridge, HtmlPage]] = {}
 		self.__avatar_widget: Optional[AvatarWidget] = None
+		self.__pending_select: Optional[Tuple[str, str]] = None
 
 		self.add_listener(events.REQUEST_PAGE_SHOW, self.__on_show)
 
@@ -57,10 +72,15 @@ class UiSystem(System):
 		await asyncio.get_running_loop().run_in_executor(None, self.__ready.wait)
 		if self.__failure is not None:
 			raise RuntimeError("the interface could not start") from self.__failure
+		self.__subscribe()
 		self.add_task(self.__poll_dirty())
 
 	async def stop(self):
 		await super().stop()
+		# a collection is its own Dispatcher, so System.stop() knows nothing about these
+		for component in WATCHED:
+			self.env.data_storage.get_collection(component).remove_all_listeners(self)
+
 		# The Qt thread tears itself down: widgets and the QApplication belong to it,
 		# and a daemon thread parked in Qt's C++ loop never returns to python to be killed.
 		self.__stopping.set()
@@ -69,7 +89,66 @@ class UiSystem(System):
 			if self.__thread.is_alive():
 				logger.error("the interface thread did not stop")
 
-	# --- asyncio side: scans the storage, never touches a widget ---
+	def __subscribe(self) -> None:
+		storage = self.env.data_storage
+		windows = storage.get_collection(WindowEC)
+		windows.add_listener(windows.EVENT_ADDED, self.__on_window_added, scope=self)
+		windows.add_listener(windows.EVENT_REMOVED, self.__on_window_removed, scope=self)
+
+		current = storage.get_collection(CurrentTabEC)
+		current.add_listener(current.EVENT_ADDED, self.__on_tab_current, scope=self)
+
+		tabs = storage.get_collection(TabEC)
+		tabs.add_listener(tabs.EVENT_REMOVED, self.__on_tab_removed, scope=self)
+
+	# --- asyncio side: reads the storage, never touches a widget ---
+
+	async def __on_window_added(self, entity: Entity, component: WindowEC):
+		name, entity_id = component.name, entity.entity_id
+		self.__commands.put(lambda: self.__open_window(entity_id, name))
+
+	async def __on_window_removed(self, entity_id: int):
+		# REMOVED carries the id, not the entity: by the time this runs the entity is a husk
+		self.__commands.put(lambda: self.__close_window(entity_id))
+
+	async def __on_tab_current(self, entity: Entity, component: CurrentTabEC):
+		if not entity.has_component(TabEC):
+			return
+		tab = entity.get_component(TabEC)
+		title, window = tab.title, tab.window
+		self.__commands.put(lambda: self.__request_select(window, title))
+
+	async def __on_tab_removed(self, entity_id: int):
+		pages = dict(self.__pages.get())
+		view = pages.pop(entity_id, None)
+		if view is None:
+			return
+		self.__pages.set(pages)
+		window, title = view.window, view.title
+		self.__commands.put(lambda: self.__drop_tab(entity_id, window, title))
+
+	async def __on_show(self, title: str, window: str = DEFAULT_WINDOW):
+		page = self.__tab(title, window)
+		if page is None:
+			return
+		self.__ensure_window(window)
+		for entity in list(self.env.data_storage.get_collection(CurrentTabEC)):
+			if entity.has_component(TabEC) and entity.get_component(TabEC).window == window:
+				entity.remove_component(CurrentTabEC)
+		page.add_component(CurrentTabEC())
+
+	def __tab(self, title: str, window: str) -> Optional[Entity]:
+		for entity in self.env.data_storage.get_collection(TabEC):
+			tab = entity.get_component(TabEC)
+			if tab.title == title and tab.window == window:
+				return entity
+		return None
+
+	def __ensure_window(self, name: str) -> None:
+		storage = self.env.data_storage
+		if storage.get_collection(WindowEC).find(WindowEC.make_hash(name)) is not None:
+			return
+		storage.create_entity().add_component(WindowEC(name))
 
 	async def __poll_dirty(self):
 		while True:
@@ -78,21 +157,21 @@ class UiSystem(System):
 
 	def __scan_dirty(self):
 		for entity in list(self.env.data_storage.get_collection(RenderDirtyEC)):
-			if entity.has_component(WindowEC) and entity.has_component(TabViewEC):
+			if entity.has_component(TabEC) and entity.has_component(TabViewEC):
 				self.__sync_page(entity)
 			if entity.has_component(AvatarViewEC):
 				self.__sync_avatar(entity)
 			entity.remove_component(RenderDirtyEC)
 
 	def __sync_page(self, entity: Entity) -> None:
-		"""The only place a WindowEC/TabViewEC pair becomes a PageView - trivial field
+		"""The only place a TabEC/TabViewEC pair becomes a PageView - trivial field
 		copying, nothing the Qt side has to interpret."""
-		window = entity.get_component(WindowEC)
+		tab = entity.get_component(TabEC)
 		view = entity.get_component(TabViewEC)
 		pages = dict(self.__pages.get())
 		pages[entity.entity_id] = PageView(
-			title=window.title,
-			window=window.window,
+			title=tab.title,
+			window=tab.window,
 			path=view.path,
 			channel=view.channel,
 			snapshot=view.snapshot,
@@ -108,9 +187,6 @@ class UiSystem(System):
 			timer_progress=view.timer_progress,
 			menu=list(view.menu),
 		))
-
-	async def __on_show(self, title: str, window: str = DEFAULT_WINDOW):
-		self.__commands.put(("show", title, window))
 
 	# --- called from the Qt thread, hands off to the asyncio thread ---
 
@@ -139,6 +215,14 @@ class UiSystem(System):
 			self.env.event_bus.dispatch(event, *(values if isinstance(values, list) else [values]))
 		self.__loop.call_soon_threadsafe(run)
 
+	def window_closed(self, entity_id: int) -> None:
+		"""The user closed the window, so the window entity is what goes away."""
+		def run():
+			entity = self.env.data_storage.get_entity(entity_id)
+			if entity is not None:
+				self.env.data_storage.remove_entity(entity)
+		self.__loop.call_soon_threadsafe(run)
+
 	# --- Qt thread: its own loop, never reaches into env.data_storage or env.event_bus ---
 
 	def __run_qt(self):
@@ -164,6 +248,8 @@ class UiSystem(System):
 		while not self.__stopping.is_set():
 			self.__drain_commands()
 			self.__apply_pages()
+			# after the tabs exist, or selecting one that was registered this tick misses
+			self.__apply_select()
 			self.__avatar_widget.apply(self.__avatar.get())
 			self.__avatar_widget.advance(POLL_S)
 			await asyncio.sleep(POLL_S)
@@ -176,6 +262,7 @@ class UiSystem(System):
 		for window in self.__windows.values():
 			window.close()
 		self.__windows.clear()
+		self.__window_names.clear()
 		self.__built.clear()
 		if self.__avatar_widget is not None:
 			self.__avatar_widget.close()
@@ -187,13 +274,52 @@ class UiSystem(System):
 				command = self.__commands.get_nowait()
 			except queue.Empty:
 				return
-			if command[0] == "show":
-				self.__show(command[1], command[2])
+			try:
+				command()
+			except Exception as ex:
+				logger.error("interface command failed: %s", ex, exc_info=True)
 
-	def __show(self, title: str, window_name: str) -> None:
+	def __open_window(self, entity_id: int, name: str) -> None:
+		self.__window_names[entity_id] = name
+		if name in self.__windows:
+			return
+		window = TabbedWindow(name, on_close=lambda eid=entity_id: self.window_closed(eid))
+		window.tabs.currentChanged.connect(
+			lambda index, opened=window: self.__on_tab_changed(opened, index))
+		self.__windows[name] = window
+
+	def __close_window(self, entity_id: int) -> None:
+		name = self.__window_names.pop(entity_id, None)
+		if name is None:
+			return
+		window = self.__windows.pop(name, None)
+		if window is None:
+			return
+		for page_id, view in self.__pages.get().items():
+			if view.window == name:
+				self.__built.pop(page_id, None)
+		if self.__pending_select is not None and self.__pending_select[0] == name:
+			self.__pending_select = None
+		window.close()
+		window.deleteLater()
+
+	def __drop_tab(self, page_id: int, window_name: str, title: str) -> None:
+		self.__built.pop(page_id, None)
+		window = self.__windows.get(window_name)
+		if window is not None:
+			window.remove_page(title)
+
+	def __request_select(self, window_name: str, title: str) -> None:
+		self.__pending_select = (window_name, title)
+
+	def __apply_select(self) -> None:
+		if self.__pending_select is None:
+			return
+		window_name, title = self.__pending_select
 		window = self.__windows.get(window_name)
 		if window is None:
 			return
+		self.__pending_select = None
 		page = window.select(title)
 		window.show()
 		window.raise_()
@@ -201,28 +327,21 @@ class UiSystem(System):
 		if page is not None and not page.loaded:
 			asyncio.ensure_future(page.load())
 
-	def __window(self, name: str) -> TabbedWindow:
-		window = self.__windows.get(name)
-		if window is None:
-			window = TabbedWindow(name)
-			self.__windows[name] = window
-			window.tabs.currentChanged.connect(lambda index, w=window: self.__on_tab_changed(w, index))
-		return window
-
 	def __on_tab_changed(self, window: TabbedWindow, index: int) -> None:
 		html = window.tabs.widget(index)
 		if isinstance(html, HtmlPage) and not html.loaded:
 			asyncio.ensure_future(html.load())
 
 	def __apply_pages(self) -> None:
-		for entity_id, spec in self.__pages.get().items():
+		for entity_id, view in self.__pages.get().items():
+			window = self.__windows.get(view.window)
+			if window is None:
+				continue  # its window is not open, so there is nowhere to put the tab yet
 			built = self.__built.get(entity_id)
 			if built is None:
-				window = self.__window(spec.window)
 				bridge = Bridge(entity_id, self)
-				html_page = window.add_page(spec.title, spec.path, {spec.channel: bridge})
-				bridge.push(spec.snapshot)
-				self.__built[entity_id] = (bridge, html_page)
+				html = window.add_page(view.title, view.path, {view.channel: bridge})
+				bridge.push(view.snapshot)
+				self.__built[entity_id] = (bridge, html)
 			else:
-				bridge, _ = built
-				bridge.push(spec.snapshot)
+				built[0].push(view.snapshot)

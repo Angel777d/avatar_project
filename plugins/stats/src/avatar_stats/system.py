@@ -21,7 +21,7 @@ from avatar_api.timelog import (
 	log_time,
 	new_span,
 )
-from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
+from avatar_ui.components import RenderDirtyEC, TabEC, TabViewEC
 
 from avatar_stats.components import DEFAULT_RANGE, LogEntryEC, LogEventEC, StopwatchEC
 from avatar_stats.export import write_csv
@@ -88,7 +88,7 @@ class StatsSystem(System):
 
 	def __register(self):
 		self.__entity = self.env.data_storage.create_entity()
-		self.__entity.add_component(WindowEC(PAGE_TITLE, WINDOW))
+		self.__entity.add_component(TabEC(PAGE_TITLE, WINDOW))
 		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, self.__snapshot(), METHODS))
 		self.__mark_dirty()
 

@@ -1,16 +1,41 @@
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Dict, Hashable, List, Tuple, Union
 
-from angelovich.core.DataStorage import EntityComponent
+from angelovich.core.DataStorage import EntityComponent, EntityHashComponent
+
+DEFAULT_WINDOW = ""
 
 
-class WindowEC(EntityComponent):
-	"""A page hosted in a tabbed window. Not for the avatar - it isn't tabbed."""
+class WindowEC(EntityHashComponent):
+	"""A window, one entity each, keyed by name. Removing the entity closes it."""
 
-	def __init__(self, title: str = "", window: str = ""):
+	def __init__(self, name: str = DEFAULT_WINDOW):
+		super().__init__()
+		self.name: str = name
+
+	@staticmethod
+	def make_hash(name: str) -> Hashable:
+		return name
+
+	def __hash__(self):
+		return hash(self.name)
+
+	def __repr__(self):
+		return f"WindowEC({self.name})"
+
+
+class TabEC(EntityComponent):
+	"""A page hosted as a tab: what it is called and which window it belongs to."""
+
+	def __init__(self, title: str = "", window: str = DEFAULT_WINDOW):
 		super().__init__()
 		self.title: str = title
 		self.window: str = window
+
+
+class CurrentTabEC(EntityComponent):
+	"""Marker: the current tab of its window. Moving it switches tab and raises the window.
+	It is always removed and re-added, so asking for the tab already shown still raises."""
 
 
 class TabViewEC(EntityComponent):

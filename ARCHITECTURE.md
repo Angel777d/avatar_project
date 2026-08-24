@@ -69,10 +69,20 @@ Still missing for a real release: `avatar_project` is a private repository, so i
 
 ## Windows
 
-Plugins do not own windows. A page is registered by attaching `WindowEC` (title, window name) and `TabViewEC` (html path, webchannel object name, a JSON snapshot the plugin keeps current, and a method-name-to-event map) to an entity — `avatar.ui`'s own plugin, `UiSystem`, owns the windows and puts each such entity's page in a tab. Adding `RenderDirtyEC` to that entity is what tells `UiSystem` to look at it; it clears the marker once it has.
+**Windows and tabs are entities, and their lifecycle is the event.** `ADDED`/`REMOVED` on a collection is the only change notification the storage offers — field changes are never announced — so anything the interface must react to is modelled as a component appearing or disappearing, never as a field to poll.
 
-- One window per **window name**, default `""`. Pass a name to get a second window instead of another tab, and the name is the window's title: `avatar_stats` registers under `Statistics` and opens beside the main window rather than crowding it.
-- A window is created on the first `request.page.show` for it, and a tab's web view is built and loaded the first time that tab is shown — registering costs nothing.
+| entity | carries | meaning |
+| --- | --- | --- |
+| a window | `WindowEC(name)` | this window exists. **Removing the entity closes it**; there is no separate "visible" flag to disagree with reality |
+| a page | `TabEC(title, window)` + `TabViewEC(...)` | a tab titled `title` in the window called `window`. Removing `TabEC` removes the tab |
+| the current tab | `CurrentTabEC` | marker, one per window. **Moving it switches tab** and raises the window |
+
+`WindowEC` is hash-keyed by name, so the window for a name is a `find()` rather than a scan. `TabViewEC` carries the html path, the webchannel object name, a JSON snapshot the plugin keeps current, and a method-name-to-event map. `RenderDirtyEC` on a page tells `UiSystem` the view components moved; it clears the marker once it has.
+
+- `request.page.show` creates the window entity if it is missing and moves `CurrentTabEC` onto that page. The marker is always removed and re-added, so asking for the tab that is already up still fires `ADDED` and still raises the window — a plain "is shown" field would compare equal and do nothing.
+- Closing a window with its X removes the window entity, which is what destroys the widget. The user's action and the plugin's action are the same operation.
+- One window per **window name**, default `""`, and the name is the window's title: `avatar_stats` registers under `Statistics` and opens beside the main window rather than crowding it.
+- A tab's widget is built once its window is open, and its web view loads the first time that tab is shown — registering costs nothing.
 - Tabs appear in registration order, which follows plugin discovery order.
 - **Minimum window size is 720x520** and the default is 960x640, so a page must stay usable at the minimum: fill the space or centre in it. Pomodoro centres, kanban and calendar fill.
 - A page's `QObject` bridge is generic (`avatar_ui.bridge.Bridge`: `state()`, `invoke()`, `changed`) and lives entirely on the Qt thread; a plugin never constructs one. `avatar_ui/assets/bridge.js`, injected before any page script runs, is what lets page JS keep calling named methods (`board.move_card(...)`) against that generic object.
