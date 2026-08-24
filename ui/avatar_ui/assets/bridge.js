@@ -2,33 +2,14 @@
 	let Real = null;
 
 	const wrap = (object) => {
-		const pending = [];
-		let last = null;
-
-		object.changed.connect(() => {
-			if (!pending.length) return;
-			const waiting = pending.splice(0, pending.length);
-			object.state((data) => waiting.forEach((resolve) => resolve(data)));
-		});
-
+		// State is pushed, never fetched: a read is always answered from what was last
+		// pushed, and arguments only ever ask the app to change something. Waiting for the
+		// next `changed` instead would hang whenever the answer happened to be identical,
+		// because an unchanged snapshot is not pushed again.
 		const call = (name, args) => {
 			const resolve = typeof args[args.length - 1] === "function" ? args.pop() : null;
-			if (!resolve) {
-				object.invoke(name, JSON.stringify(args));
-				return;
-			}
-
-			// A page asks for its state on every change. Answering an unchanged question from
-			// the cache is what stops changed -> ask -> push -> changed from running forever.
-			const key = name + ":" + JSON.stringify(args);
-			if (args.length === 0 || key === last) {
-				object.state(resolve);
-				return;
-			}
-
-			last = key;
-			pending.push(resolve);
-			object.invoke(name, JSON.stringify(args));
+			if (args.length) object.invoke(name, JSON.stringify(args));
+			if (resolve) object.state(resolve);
 		};
 
 		return new Proxy(object, {

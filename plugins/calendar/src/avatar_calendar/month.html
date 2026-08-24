@@ -330,12 +330,13 @@ function render(data) {
 }
 
 function refresh() {
-  bridge.snapshot_at(offset, (payload) => render(JSON.parse(payload)));
+  bridge.snapshot((payload) => render(JSON.parse(payload)));
 }
 
 function step(by) {
   offset = by === 0 ? 0 : offset + by;
-  refresh();
+  // the app owns which month is in focus: ask it to move, then render what it pushes back
+  bridge.set_month(offset);
 }
 
 new QWebChannel(qt.webChannelTransport, (channel) => {

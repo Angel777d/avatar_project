@@ -19,7 +19,7 @@ EVENT_MONTH = "request.calendar.month"
 
 CHANNEL = "calendar"
 METHODS: Dict[str, str] = {
-	"snapshot_at": EVENT_MONTH,
+	"set_month": EVENT_MONTH,
 	"add_note": EVENT_ADD,
 	"delete_note": EVENT_DELETE,
 	"edit_note": EVENT_EDIT,

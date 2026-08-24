@@ -14,7 +14,7 @@ EVENT_RANGE = "request.stats.range"
 
 CHANNEL = "stats"
 METHODS: Dict[str, str] = {
-	"snapshot": EVENT_RANGE,
+	"set_range": EVENT_RANGE,
 	"start": EVENT_START,
 	"stop": EVENT_STOP,
 	"add": EVENT_ADD,

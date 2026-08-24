@@ -483,8 +483,13 @@ function bounds() {
 }
 
 function refresh() {
+  bridge.snapshot((payload) => render(JSON.parse(payload)));
+}
+
+function apply_range() {
+  // the app owns the range: ask it to move, then render what it pushes back
   const [from, to] = bounds();
-  bridge.snapshot(days, days ? "" : from, days ? "" : to, (payload) => render(JSON.parse(payload)));
+  bridge.set_range(days, days ? "" : from, days ? "" : to);
 }
 
 new QWebChannel(qt.webChannelTransport, (channel) => {
@@ -519,11 +524,11 @@ new QWebChannel(qt.webChannelTransport, (channel) => {
         document.getElementById("from").value =
           new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
       }
-      refresh();
+      apply_range();
     });
   });
-  document.getElementById("from").addEventListener("change", refresh);
-  document.getElementById("to").addEventListener("change", refresh);
+  document.getElementById("from").addEventListener("change", apply_range);
+  document.getElementById("to").addEventListener("change", apply_range);
 
   document.querySelectorAll(".modes span").forEach((button) => {
     button.addEventListener("click", () => {
