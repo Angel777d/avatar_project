@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -20,19 +21,23 @@ from avatar_api.timelog import (
 	log_time,
 	new_span,
 )
+from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
 
-from avatar_stats.components import LogEntryEC, LogEventEC, StopwatchEC
+from avatar_stats.components import DEFAULT_RANGE, LogEntryEC, LogEventEC, StopwatchEC
 from avatar_stats.export import write_csv
+from avatar_stats.summary import build_snapshot
 from avatar_stats.window import (
+	CHANNEL,
 	EVENT_ADD,
 	EVENT_EXPORT,
 	EVENT_FORGET,
 	EVENT_OPEN,
+	EVENT_RANGE,
 	EVENT_START,
 	EVENT_STOP,
+	METHODS,
 	PAGE,
 	WINDOW,
-	StatsBridge,
 )
 
 MENU_ITEM = "Open statistics"
@@ -49,7 +54,10 @@ MAX_MINUTES = 24 * 60
 class StatsSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
-		self.__bridge: Optional[StatsBridge] = None
+		self.__entity: Optional[Entity] = None
+		self.__days: int = DEFAULT_RANGE
+		self.__since: str = ""
+		self.__until: str = ""
 
 	async def start(self):
 		self.env.registry.register(LogEntryEC, "log_entry")
@@ -63,25 +71,42 @@ class StatsSystem(System):
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_FORGET, self.__on_forget)
 		self.add_listener(EVENT_EXPORT, self.__on_export)
+		self.add_listener(EVENT_RANGE, self.__on_range)
 		self.add_listener(events.ACTION_LOG_DATA, self.__on_data)
 		self.add_listener(events.ACTION_LOG_EVENT, self.__on_event)
 		self.add_listener(events.REQUEST_APP_CLOSE, self.__on_app_close)
 
-		self.__bridge = StatsBridge(self.env)
-		await self.env.event_bus.dispatch_async(
-			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"stats": self.__bridge}, WINDOW)
+		self.__register()
 
 	async def stop(self):
 		await super().stop()
-		self.__bridge = None
 
 	async def _update(self, delta_time: float):
 		if self.__running() is not None:
 			self.__changed()
 
+	def __register(self):
+		self.__entity = self.env.data_storage.create_entity()
+		self.__entity.add_component(WindowEC(PAGE_TITLE, WINDOW))
+		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, self.__snapshot(), METHODS))
+		self.__mark_dirty()
+
+	def __snapshot(self) -> str:
+		return json.dumps(build_snapshot(self.env.data_storage, self.__days, self.__since, self.__until))
+
+	def __mark_dirty(self):
+		if not self.__entity.has_component(RenderDirtyEC):
+			self.__entity.add_component(RenderDirtyEC())
+
 	def __changed(self):
-		if self.__bridge:
-			self.__bridge.changed.emit()
+		if self.__entity is None:
+			return
+		self.__entity.get_component(TabViewEC).snapshot = self.__snapshot()
+		self.__mark_dirty()
+
+	async def __on_range(self, days: int = DEFAULT_RANGE, since: str = "", until: str = ""):
+		self.__days, self.__since, self.__until = days, since, until
+		self.__changed()
 
 	def __running(self) -> Optional[Entity]:
 		for entity in self.env.data_storage.get_collection(StopwatchEC):

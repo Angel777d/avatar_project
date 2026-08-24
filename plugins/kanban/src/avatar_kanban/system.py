@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 
 from avatar_api import Entity, Env, System, events
@@ -7,6 +8,7 @@ from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_api.tags import apply_tags, names_from, tags_of
 from avatar_api.timelog import CREATED, DONE, UNDONE, log_data, log_event
+from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
 
 from avatar_kanban.components import (
 	DEFAULT_COLUMNS,
@@ -17,6 +19,7 @@ from avatar_kanban.components import (
 	KanbanTaskEC,
 )
 from avatar_kanban.window import (
+	CHANNEL,
 	EVENT_ADD,
 	EVENT_CLEAR,
 	EVENT_COLUMN_ADD,
@@ -29,8 +32,9 @@ from avatar_kanban.window import (
 	EVENT_MOVE,
 	EVENT_OPEN,
 	EVENT_RESET,
+	METHODS,
 	PAGE,
-	Board,
+	build_snapshot,
 )
 
 MENU_ITEM = "Open kanban"
@@ -42,7 +46,7 @@ TYPE_NAME = "kanban"
 class KanbanSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
-		self.__board: Optional[Board] = None
+		self.__entity: Optional[Entity] = None
 
 	async def start(self):
 		self.env.registry.register(KanbanTaskEC, "kanban_task")
@@ -66,13 +70,23 @@ class KanbanSystem(System):
 		self.add_listener(EVENT_COLUMN_DELETE, self.__on_column_delete)
 		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
-		self.__board = Board(self.env)
-		await self.env.event_bus.dispatch_async(
-			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"board": self.__board})
+		self.__register()
 
 	async def stop(self):
 		await super().stop()
-		self.__board = None
+
+	def __register(self):
+		self.__entity = self.env.data_storage.create_entity()
+		self.__entity.add_component(WindowEC(PAGE_TITLE))
+		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, self.__snapshot(), METHODS))
+		self.__mark_dirty()
+
+	def __snapshot(self) -> str:
+		return json.dumps(build_snapshot(self.env.data_storage))
+
+	def __mark_dirty(self):
+		if not self.__entity.has_component(RenderDirtyEC):
+			self.__entity.add_component(RenderDirtyEC())
 
 	async def __on_open(self):
 		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)
@@ -232,8 +246,10 @@ class KanbanSystem(System):
 			entity.get_component(KanbanTaskEC).position = index
 
 	def __changed(self):
-		if self.__board:
-			self.__board.changed.emit()
+		if self.__entity is None:
+			return
+		self.__entity.get_component(TabViewEC).snapshot = self.__snapshot()
+		self.__mark_dirty()
 
 	def __announce(self):
 		self.env.event_bus.dispatch(events.ACTION_STORAGE_CHANGED)

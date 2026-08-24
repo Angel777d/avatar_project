@@ -1,7 +1,5 @@
-import json
 from pathlib import Path
-
-from PySide6.QtCore import QObject, Signal, Slot
+from typing import Dict
 
 from avatar_api import DataStorage
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
@@ -23,6 +21,21 @@ EVENT_COLUMN_MOVE = "request.kanban.column.move"
 EVENT_COLUMN_RENAME = "request.kanban.column.rename"
 EVENT_RESET = "request.kanban.reset"
 EVENT_CLEAR = "request.kanban.clear"
+
+CHANNEL = "board"
+METHODS: Dict[str, str] = {
+	"move_card": EVENT_MOVE,
+	"add_card": EVENT_ADD,
+	"set_deadline": EVENT_DEADLINE,
+	"edit_card": EVENT_EDIT,
+	"delete_card": EVENT_DELETE,
+	"move_column": EVENT_COLUMN_MOVE,
+	"rename_column": EVENT_COLUMN_RENAME,
+	"add_column": EVENT_COLUMN_ADD,
+	"delete_column": EVENT_COLUMN_DELETE,
+	"reset": EVENT_RESET,
+	"clear": EVENT_CLEAR,
+}
 
 
 def ordered_columns(data_storage: DataStorage) -> list:
@@ -65,60 +78,3 @@ def build_snapshot(data_storage: DataStorage) -> dict:
 			"cards": cards,
 		})
 	return {"columns": columns, "tags": catalogue(data_storage)}
-
-
-class Board(QObject):
-	changed = Signal()
-
-	def __init__(self, env):
-		super().__init__()
-		self.__env = env
-
-	@Slot(result=str)
-	def snapshot(self) -> str:
-		return json.dumps(build_snapshot(self.__env.data_storage))
-
-	@Slot(str, str, int)
-	def move_card(self, card_id: str, column_id: str, position: int):
-		self.__env.event_bus.dispatch(EVENT_MOVE, card_id, column_id, position)
-
-	@Slot(str, str)
-	def add_card(self, column_id: str, title: str):
-		self.__env.event_bus.dispatch(EVENT_ADD, column_id, title)
-
-	@Slot(str, str)
-	def set_deadline(self, card_id: str, day: str):
-		self.__env.event_bus.dispatch(EVENT_DEADLINE, card_id, day)
-
-	@Slot(str, str, str, str)
-	def edit_card(self, card_id: str, title: str, text: str, tags: str):
-		self.__env.event_bus.dispatch(EVENT_EDIT, card_id, title, text, tags)
-
-	@Slot(str)
-	def delete_card(self, card_id: str):
-		self.__env.event_bus.dispatch(EVENT_DELETE, card_id)
-
-	@Slot(str, int)
-	def move_column(self, column_id: str, position: int):
-		self.__env.event_bus.dispatch(EVENT_COLUMN_MOVE, column_id, position)
-
-	@Slot(str, str)
-	def rename_column(self, column_id: str, name: str):
-		self.__env.event_bus.dispatch(EVENT_COLUMN_RENAME, column_id, name)
-
-	@Slot(str)
-	def add_column(self, name: str):
-		self.__env.event_bus.dispatch(EVENT_COLUMN_ADD, name)
-
-	@Slot(str)
-	def delete_column(self, column_id: str):
-		self.__env.event_bus.dispatch(EVENT_COLUMN_DELETE, column_id)
-
-
-	@Slot()
-	def reset(self):
-		self.__env.event_bus.dispatch(EVENT_RESET)
-
-	@Slot()
-	def clear(self):
-		self.__env.event_bus.dispatch(EVENT_CLEAR)

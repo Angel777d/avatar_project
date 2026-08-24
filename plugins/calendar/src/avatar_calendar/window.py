@@ -1,10 +1,7 @@
 import calendar
-import json
 from datetime import date, time
 from pathlib import Path
-from typing import List, Optional
-
-from PySide6.QtCore import QObject, Signal, Slot
+from typing import Dict, List, Optional
 
 from avatar_api import DataStorage
 from avatar_api.components import DateEC, NoteEC, StaticIdEC
@@ -18,6 +15,15 @@ EVENT_OPEN = "request.calendar.open"
 EVENT_ADD = "request.calendar.add"
 EVENT_DELETE = "request.calendar.delete"
 EVENT_EDIT = "request.calendar.edit"
+EVENT_MONTH = "request.calendar.month"
+
+CHANNEL = "calendar"
+METHODS: Dict[str, str] = {
+	"snapshot_at": EVENT_MONTH,
+	"add_note": EVENT_ADD,
+	"delete_note": EVENT_DELETE,
+	"edit_note": EVENT_EDIT,
+}
 
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -94,32 +100,3 @@ def build_snapshot(data_storage: DataStorage,
 		"notes": notes_by_day(data_storage),
 		"tags": catalogue(data_storage),
 	}
-
-
-class CalendarBridge(QObject):
-	changed = Signal()
-
-	def __init__(self, env):
-		super().__init__()
-		self.__env = env
-
-	@Slot(result=str)
-	def snapshot(self) -> str:
-		return self.snapshot_at(0)
-
-	@Slot(int, result=str)
-	def snapshot_at(self, offset: int) -> str:
-		focus = shift_month(date.today(), offset)
-		return json.dumps(build_snapshot(self.__env.data_storage, focus))
-
-	@Slot(str, str)
-	def add_note(self, day: str, title: str):
-		self.__env.event_bus.dispatch(EVENT_ADD, day, title)
-
-	@Slot(str)
-	def delete_note(self, note_id: str):
-		self.__env.event_bus.dispatch(EVENT_DELETE, note_id)
-
-	@Slot(str, str, str, str, str, str)
-	def edit_note(self, note_id: str, title: str, text: str, begin: str, end: str, tags: str):
-		self.__env.event_bus.dispatch(EVENT_EDIT, note_id, title, text, begin, end, tags)

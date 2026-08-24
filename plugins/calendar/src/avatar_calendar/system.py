@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, time, timedelta
 from typing import Optional, Tuple
 
@@ -6,15 +7,20 @@ from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_api.tags import apply_tags, names_from, tags_of
 from avatar_api.timelog import DURATION, SOURCE, SPAN, STARTED, log_data, measure
+from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
 
 from avatar_calendar.components import CalendarNoteEC
 from avatar_calendar.window import (
+	CHANNEL,
 	EVENT_ADD,
 	EVENT_DELETE,
 	EVENT_EDIT,
+	EVENT_MONTH,
 	EVENT_OPEN,
+	METHODS,
 	PAGE,
-	CalendarBridge,
+	build_snapshot,
+	shift_month,
 )
 
 MENU_ITEM = "Open calendar"
@@ -35,7 +41,8 @@ def parse_time(value: str) -> Optional[time]:
 class CalendarSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
-		self.__bridge: Optional[CalendarBridge] = None
+		self.__entity: Optional[Entity] = None
+		self.__focus: date = date.today()
 
 	async def start(self):
 		self.env.registry.register(CalendarNoteEC, "calendar_note")
@@ -46,20 +53,37 @@ class CalendarSystem(System):
 		self.add_listener(EVENT_ADD, self.__on_add)
 		self.add_listener(EVENT_DELETE, self.__on_delete)
 		self.add_listener(EVENT_EDIT, self.__on_edit)
+		self.add_listener(EVENT_MONTH, self.__on_month)
 		self.add_listener(events.ACTION_STORAGE_CHANGED, self.__on_storage_changed)
 		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
-		self.__bridge = CalendarBridge(self.env)
-		await self.env.event_bus.dispatch_async(
-			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"calendar": self.__bridge})
+		self.__register()
 
 	async def stop(self):
 		await super().stop()
-		self.__bridge = None
+
+	def __register(self):
+		self.__entity = self.env.data_storage.create_entity()
+		self.__entity.add_component(WindowEC(PAGE_TITLE))
+		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, self.__snapshot(), METHODS))
+		self.__mark_dirty()
+
+	def __snapshot(self) -> str:
+		return json.dumps(build_snapshot(self.env.data_storage, self.__focus))
+
+	def __mark_dirty(self):
+		if not self.__entity.has_component(RenderDirtyEC):
+			self.__entity.add_component(RenderDirtyEC())
 
 	def __changed(self):
-		if self.__bridge:
-			self.__bridge.changed.emit()
+		if self.__entity is None:
+			return
+		self.__entity.get_component(TabViewEC).snapshot = self.__snapshot()
+		self.__mark_dirty()
+
+	async def __on_month(self, offset: int):
+		self.__focus = shift_month(date.today(), offset)
+		self.__changed()
 
 	def __find(self, note_id: str) -> Optional[Entity]:
 		entity = self.env.data_storage.get_collection(StaticIdEC).find(StaticIdEC.make_hash(note_id))

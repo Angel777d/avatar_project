@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import (
@@ -13,9 +13,7 @@ from PySide6.QtGui import (
 	QRadialGradient,
 	QRegion,
 )
-from avatar_api.action import trigger
-from avatar_api.components import MenuItemEC, TimerEC
-from avatar_api.menu import menu_items
+
 from avatar_ui.transparent import TransparentWindow
 
 EVENT_CLICKED = "avatar.clicked"
@@ -29,9 +27,13 @@ BOB_AMPLITUDE = 5
 
 
 class AvatarWidget(TransparentWindow):
-	def __init__(self, env):
+	"""Paints from whatever apply() last handed it. Never touches the data storage or the bus
+	directly - that would be a different thread's data."""
+
+	def __init__(self, post_event: Callable[..., None], trigger_menu: Callable[[int], None]):
 		super().__init__((BUBBLE_MAX_W + 2 * MARGIN, AVATAR_SIZE + 96))
-		self.__env = env
+		self.__post_event = post_event
+		self.__trigger_menu = trigger_menu
 		self.__font = QFont("Segoe UI", 10)
 		self.__phase = 0.0
 		self.__blink = 0.0
@@ -39,6 +41,8 @@ class AvatarWidget(TransparentWindow):
 		self.__elapsed = 0.0
 		self.__bubble_text = ""
 		self.__bubble_rect = QRect()
+		self.__timer_progress: float = -1.0
+		self.__menu: List[Tuple[int, str]] = []
 
 		base_x = (self.width() - AVATAR_SIZE) // 2
 		base_y = self.height() - AVATAR_SIZE - 4
@@ -47,9 +51,14 @@ class AvatarWidget(TransparentWindow):
 		self.place_bottom_right()
 		self.__apply_shape()
 
-	@property
-	def bubble_text(self) -> str:
-		return self.__bubble_text
+	def apply(self, state: Optional[Dict[str, Any]]) -> None:
+		if state is None:
+			return
+		self.__timer_progress = state.get("timer_progress", -1.0)
+		self.__menu = list(state.get("menu", ()))
+		bubble = state.get("bubble", "")
+		if bubble != self.__bubble_text:
+			self.set_bubble(bubble)
 
 	def advance(self, delta: float) -> None:
 		self.__phase += delta
@@ -81,32 +90,18 @@ class AvatarWidget(TransparentWindow):
 		self.update()
 
 	def on_click(self) -> None:
-		self.__env.event_bus.dispatch(EVENT_CLICKED)
+		self.__post_event(EVENT_CLICKED)
 
 	def on_drag_end(self, position: QPoint) -> None:
-		self.__env.event_bus.dispatch(EVENT_MOVED, position)
+		self.__post_event(EVENT_MOVED, position)
 
 	def on_context_menu(self, global_pos: QPoint) -> None:
 		self.show_menu(global_pos, self.menu_actions())
 
-	def timer_progress(self) -> Optional[float]:
-		timers = [
-			entity.get_component(TimerEC)
-			for entity in self.__env.data_storage.get_collection(TimerEC)
-		]
-		if not timers:
-			return None
-		timer = min(timers, key=lambda item: item.deadline())
-		span = timer.duration.total_seconds()
-		if span <= 0:
-			return 0.0
-		return max(0.0, min(1.0, timer.remaining() / span))
-
 	def menu_actions(self) -> List[Tuple[str, Callable[[], None]]]:
-		bus = self.__env.event_bus
 		return [
-			(entity.get_component(MenuItemEC).name, lambda item=entity: trigger(bus, item))
-			for entity in menu_items(self.__env.data_storage)
+			(name, lambda entity_id=entity_id: self.__trigger_menu(entity_id))
+			for entity_id, name in self.__menu
 		]
 
 	def __apply_shape(self) -> None:
@@ -149,8 +144,8 @@ class AvatarWidget(TransparentWindow):
 		)
 
 	def __paint_ring(self, painter, rect) -> None:
-		left = self.timer_progress()
-		if left is None:
+		left = self.__timer_progress
+		if left is None or left < 0:
 			return
 
 		ring = rect.adjusted(2, 2, -2, -2)

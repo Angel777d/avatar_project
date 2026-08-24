@@ -1,12 +1,15 @@
 import asyncio
+import json
 import logging
 from typing import Dict, List, Optional, Set
 
-from avatar_api import Env, System, events
+from avatar_api import Entity, Env, System, events
 from avatar_api.menu import add_menu_item
+from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
 
 from avatar_manager import registries
 from avatar_manager.window import (
+	CHANNEL,
 	EVENT_APPLY,
 	EVENT_OPEN,
 	EVENT_REFRESH,
@@ -14,8 +17,8 @@ from avatar_manager.window import (
 	EVENT_REGISTRY_REMOVE,
 	EVENT_REVERT,
 	EVENT_TOGGLE,
+	METHODS,
 	PAGE,
-	Manager,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +30,7 @@ PAGE_TITLE = "Plugins"
 class ManagerSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
-		self.__bridge: Optional[Manager] = None
+		self.__entity: Optional[Entity] = None
 		self.__catalogue: List[dict] = []
 		self.__sources: List[dict] = []
 		self.__installed: List[str] = []
@@ -49,15 +52,22 @@ class ManagerSystem(System):
 	async def start(self):
 		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
 
-		self.__bridge = Manager(self)
-		await self.env.event_bus.dispatch_async(
-			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"manager": self.__bridge})
+		self.__register()
 
 		self.__reload(False)
 
 	async def stop(self):
 		await super().stop()
-		self.__bridge = None
+
+	def __register(self):
+		self.__entity = self.env.data_storage.create_entity()
+		self.__entity.add_component(WindowEC(PAGE_TITLE))
+		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, json.dumps(self.snapshot()), METHODS))
+		self.__mark_dirty()
+
+	def __mark_dirty(self):
+		if not self.__entity.has_component(RenderDirtyEC):
+			self.__entity.add_component(RenderDirtyEC())
 
 	def snapshot(self) -> dict:
 		installed = set(self.__installed)
@@ -126,8 +136,10 @@ class ManagerSystem(System):
 		self.__touched = False
 
 	def __announce(self) -> None:
-		if self.__bridge is not None:
-			self.__bridge.changed.emit()
+		if self.__entity is None:
+			return
+		self.__entity.get_component(TabViewEC).snapshot = json.dumps(self.snapshot())
+		self.__mark_dirty()
 
 	async def __on_open(self):
 		self.env.event_bus.dispatch(events.REQUEST_PAGE_SHOW, PAGE_TITLE)

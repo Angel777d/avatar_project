@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 ASSETS = Path(__file__).resolve().parent / "assets"
 THEME = ASSETS / "theme.css"
+BRIDGE = ASSETS / "bridge.js"
 SHARED = (ASSETS / "editor.css", ASSETS / "editor.js")
 
 
@@ -31,6 +32,18 @@ def style_script(path: Path, name: str) -> QWebEngineScript:
 	script = QWebEngineScript()
 	script.setName(name)
 	script.setSourceCode(source)
+	script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+	script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+	script.setRunsOnSubFrames(False)
+	return script
+
+
+def raw_script(path: Path, name: str) -> QWebEngineScript:
+	"""The page's own script constructs QWebChannel during load, so the shim
+	that intercepts it has to be there before a single line of page JS runs."""
+	script = QWebEngineScript()
+	script.setName(name)
+	script.setSourceCode(path.read_text(encoding="utf-8"))
 	script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
 	script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
 	script.setRunsOnSubFrames(False)
@@ -82,6 +95,7 @@ class HtmlPage(QWidget):
 		if self.view is None:
 			self.view = QWebEngineView(self)
 			self.view.page().scripts().insert(style_script(THEME, "avatar.theme"))
+			self.view.page().scripts().insert(raw_script(BRIDGE, "avatar.bridge"))
 			self.channel = QWebChannel(self.view.page())
 			for name, obj in self.__objects.items():
 				self.channel.registerObject(name, obj)

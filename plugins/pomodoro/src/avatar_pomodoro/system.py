@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
@@ -5,6 +6,7 @@ from avatar_api import Entity, Env, System, events
 from avatar_api.components import NotificationEC, StaticIdEC, TimerEC
 from avatar_api.menu import add_menu_item
 from avatar_api.timelog import log_data, log_time, measure
+from avatar_ui.components import RenderDirtyEC, TabViewEC, WindowEC
 
 from avatar_pomodoro.components import (
 	DEFAULT_NAME,
@@ -14,6 +16,7 @@ from avatar_pomodoro.components import (
 )
 from avatar_pomodoro.window import (
 	ACTION_PHASE_CHANGED,
+	CHANNEL,
 	EVENT_OPEN,
 	EVENT_PAUSE,
 	EVENT_PRESET_DELETE,
@@ -22,8 +25,8 @@ from avatar_pomodoro.window import (
 	EVENT_SELECT,
 	EVENT_SKIP,
 	EVENT_START,
+	METHODS,
 	PAGE,
-	PomodoroBridge,
 )
 
 MENU_ITEM = "Open pomodoro"
@@ -49,7 +52,7 @@ LABELS = {
 class PomodoroSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
-		self.__bridge: Optional[PomodoroBridge] = None
+		self.__entity: Optional[Entity] = None
 		self.__chain: Optional[PomodoroSettingsEC] = None
 		self.__phase = PHASE_IDLE
 		self.__total = 0.0
@@ -78,17 +81,24 @@ class PomodoroSystem(System):
 		self.add_listener(events.ACTION_TIMER_COMPLETE, self.__on_timer_complete)
 		self.add_listener(events.REQUEST_APP_CLOSE, self.__on_app_close)
 
-		self.__bridge = PomodoroBridge(self.env, self.snapshot)
-		await self.env.event_bus.dispatch_async(
-			events.REQUEST_PAGE_REGISTER, PAGE_TITLE, PAGE, {"pomodoro": self.__bridge})
+		self.__register()
 
 	async def stop(self):
 		await super().stop()
-		self.__bridge = None
 
 	async def _update(self, delta_time: float):
 		if self.__timer() is not None:
 			self.__changed()
+
+	def __register(self):
+		self.__entity = self.env.data_storage.create_entity()
+		self.__entity.add_component(WindowEC(PAGE_TITLE))
+		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, json.dumps(self.snapshot()), METHODS))
+		self.__mark_dirty()
+
+	def __mark_dirty(self):
+		if not self.__entity.has_component(RenderDirtyEC):
+			self.__entity.add_component(RenderDirtyEC())
 
 	def snapshot(self) -> dict:
 		timer = self.__timer()
@@ -211,8 +221,10 @@ class PomodoroSystem(System):
 		return self.log().count(date.today())
 
 	def __changed(self):
-		if self.__bridge:
-			self.__bridge.changed.emit()
+		if self.__entity is None:
+			return
+		self.__entity.get_component(TabViewEC).snapshot = json.dumps(self.snapshot())
+		self.__mark_dirty()
 
 	async def __run(self, seconds: float):
 		self.__segment = datetime.now()
