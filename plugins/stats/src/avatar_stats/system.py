@@ -72,6 +72,7 @@ class StatsSystem(System):
 		self.add_listener(EVENT_FORGET, self.__on_forget)
 		self.add_listener(EVENT_EXPORT, self.__on_export)
 		self.add_listener(EVENT_RANGE, self.__on_range)
+		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 		self.add_listener(events.ACTION_LOG_DATA, self.__on_data)
 		self.add_listener(events.ACTION_LOG_EVENT, self.__on_event)
 		self.add_listener(events.REQUEST_APP_CLOSE, self.__on_app_close)
@@ -103,6 +104,9 @@ class StatsSystem(System):
 			return
 		self.__entity.get_component(TabViewEC).snapshot = self.__snapshot()
 		self.__mark_dirty()
+
+	async def __on_restored(self, restored: int):
+		self.__changed()
 
 	async def __on_range(self, days: int = DEFAULT_RANGE, since: str = "", until: str = ""):
 		self.__days, self.__since, self.__until = days, since, until

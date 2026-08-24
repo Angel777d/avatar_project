@@ -94,6 +94,7 @@ class KanbanSystem(System):
 	async def __on_restored(self, restored: int):
 		self.__ensure_columns()
 		self.__adopt_orphans()
+		self.__changed()
 
 	def __create_column(self, name: str, role: str = "") -> Entity:
 		entity = self.env.data_storage.create_entity()

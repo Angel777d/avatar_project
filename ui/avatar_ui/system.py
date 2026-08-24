@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import queue
 import threading
 from typing import Any, Dict, Optional, Tuple
@@ -18,6 +19,8 @@ from avatar_ui.render import AvatarView, PageView
 from avatar_ui.sync import Guarded
 from avatar_ui.tabs import TabbedWindow
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_WINDOW = ""
 POLL_S = 1 / 30
 
@@ -33,6 +36,8 @@ class UiSystem(System):
 		self.__thread: Optional[threading.Thread] = None
 		self.__app: Optional[QApplication] = None
 		self.__ready = threading.Event()
+		self.__stopping = threading.Event()
+		self.__failure: Optional[BaseException] = None
 
 		self.__pages: Guarded[Dict[int, PageView]] = Guarded({})
 		self.__avatar: Guarded[Optional[AvatarView]] = Guarded(None)
@@ -50,14 +55,19 @@ class UiSystem(System):
 		self.__thread = threading.Thread(target=self.__run_qt, name="avatar-ui", daemon=True)
 		self.__thread.start()
 		await asyncio.get_running_loop().run_in_executor(None, self.__ready.wait)
+		if self.__failure is not None:
+			raise RuntimeError("the interface could not start") from self.__failure
 		self.add_task(self.__poll_dirty())
 
 	async def stop(self):
 		await super().stop()
-		if self.__app is not None:
-			self.__app.quit()
+		# The Qt thread tears itself down: widgets and the QApplication belong to it,
+		# and a daemon thread parked in Qt's C++ loop never returns to python to be killed.
+		self.__stopping.set()
 		if self.__thread is not None:
-			self.__thread.join(timeout=5.0)
+			await asyncio.get_running_loop().run_in_executor(None, self.__thread.join, 5.0)
+			if self.__thread.is_alive():
+				logger.error("the interface thread did not stop")
 
 	# --- asyncio side: scans the storage, never touches a widget ---
 
@@ -132,23 +142,44 @@ class UiSystem(System):
 	# --- Qt thread: its own loop, never reaches into env.data_storage or env.event_bus ---
 
 	def __run_qt(self):
-		app = QApplication([])
-		app.setQuitOnLastWindowClosed(False)
-		self.__app = app
+		try:
+			app = QApplication([])
+			app.setQuitOnLastWindowClosed(False)
+			self.__app = app
 
-		self.__avatar_widget = AvatarWidget(self.post_event, self.trigger_menu)
-		self.__avatar_widget.show()
+			self.__avatar_widget = AvatarWidget(self.post_event, self.trigger_menu)
+			self.__avatar_widget.show()
+		except BaseException as ex:
+			# Nothing above reaches a caller, and a half-built interface would hang start()
+			# on __ready forever. Record it, release the wait, let start() raise it.
+			self.__failure = ex
+			self.__ready.set()
+			return
 
 		self.__ready.set()
-		QtAsyncio.run(self.__qt_loop(), keep_running=True, handle_sigint=False)
+		# keep_running=False: when __qt_loop returns, the Qt loop stops and this thread ends.
+		QtAsyncio.run(self.__qt_loop(), keep_running=False, handle_sigint=False)
 
 	async def __qt_loop(self):
-		while True:
+		while not self.__stopping.is_set():
 			self.__drain_commands()
 			self.__apply_pages()
 			self.__avatar_widget.apply(self.__avatar.get())
 			self.__avatar_widget.advance(POLL_S)
 			await asyncio.sleep(POLL_S)
+		self.__teardown()
+
+	def __teardown(self) -> None:
+		"""On the Qt thread, where every widget was built. Returning from __qt_loop is what
+		stops the loop - quitting the QApplication here closes it under QtAsyncio's own
+		cleanup instead, which then raises on a loop it can no longer use."""
+		for window in self.__windows.values():
+			window.close()
+		self.__windows.clear()
+		self.__built.clear()
+		if self.__avatar_widget is not None:
+			self.__avatar_widget.close()
+			self.__avatar_widget = None
 
 	def __drain_commands(self) -> None:
 		while True:

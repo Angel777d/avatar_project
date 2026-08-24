@@ -195,6 +195,7 @@ class PomodoroSystem(System):
 			self.__create_preset()
 		self.selected()
 		self.__idle()
+		self.__changed()
 
 	def __idle(self):
 		self.__phase = PHASE_IDLE

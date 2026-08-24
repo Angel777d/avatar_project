@@ -8,4 +8,4 @@ bin/
 obj/
 build/
 run_log.txt
-/data/
+data/

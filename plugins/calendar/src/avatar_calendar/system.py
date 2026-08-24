@@ -54,6 +54,7 @@ class CalendarSystem(System):
 		self.add_listener(EVENT_DELETE, self.__on_delete)
 		self.add_listener(EVENT_EDIT, self.__on_edit)
 		self.add_listener(EVENT_MONTH, self.__on_month)
+		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
 		self.add_listener(events.ACTION_STORAGE_CHANGED, self.__on_storage_changed)
 		self.add_listener(events.REQUEST_LOG_TIME, self.__on_log_time)
 
@@ -90,6 +91,9 @@ class CalendarSystem(System):
 		if entity is None or not entity.has_component(CalendarNoteEC):
 			return None
 		return entity
+
+	async def __on_restored(self, restored: int):
+		self.__changed()
 
 	async def __on_storage_changed(self):
 		self.__changed()
