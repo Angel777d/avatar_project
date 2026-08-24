@@ -7,8 +7,8 @@
 | `angelovich.core` | ECS `DataStorage`, `Dispatcher`, `System`, plugin discovery (sibling repo `../py_core`) | — |
 | `avatar.api` | components, event names, `Env`, `TypeRegistry` | `angelovich.core` |
 | `avatar.core` | main loop, systems, plugin policy, storage, timers, the entry point (`python -m avatar_core`) | `avatar.api` |
-| `avatar.ui` | `HtmlPage`, `TabbedWindow`, `HtmlWindow`, `TransparentWindow`; also a plugin itself, contributing `UiSystem` | `avatar.api`, PySide6 |
-| `plugins/*` | `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro`, `avatar_stats` | `avatar.api`, `avatar.ui` |
+| `avatar.ui` | `HtmlPage`, `TabbedWindow`, `TransparentWindow`, the window/tab components; also a plugin itself, contributing `UiSystem` | `avatar.api`, PySide6 |
+| `plugins/*` | `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro`, `avatar_stats`, `avatar_manager` | `avatar.api`, `avatar.ui` |
 
 **Dependency rule: a plugin depends on the api and the ui, never on the core.** `avatar.api` re-exports everything a plugin needs, so `angelovich.core` is not a plugin dependency either. Core depends on api; api never on core.
 
@@ -53,19 +53,20 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 
 ## Launcher and release
 
-`supervisor/` is a .NET 9 `WinExe` (`avatar.exe`). It is the only thing a user runs.
+`supervisor/` is a .NET 9 `WinExe` (`supervisor.exe`). It is the only thing a user runs, and installing is downloading one `.bat` — see [design/supervisor.md](design/supervisor.md) for the reasoning behind all of it.
 
-- **Development**: with no `bootstrap.json` beside it, it walks up from its own directory for `.venv\Scripts\pythonw.exe` and runs `avatar_core` from that root.
-- **Release**: `bootstrap.json` (see `bootstrap.example.json`) makes it provision instead — download a pinned standalone CPython, check its sha256, unpack, build a venv, `pip install` the configured packages, then run the configured entry module. The runtime lives in `%LOCALAPPDATA%\avatar_project\runtime`.
-- Provisioning is skipped when a state file matches a fingerprint of the url, checksum, index and package list; change any of them and the next launch re-provisions.
-- A missing or wrong checksum refuses the download rather than running it. A malformed config refuses to start rather than falling back to discovery.
+- **The workspace is the directory the executable sits in**, and everything lives there: `config.json`, the private `uv`, the interpreter, the `.venv`, `data\avatar.db`, and `supervisor.log`. Uninstalling is deleting one folder.
+- `supervisor/samples/install.bat` fetches `supervisor.exe` and `config.json` from `releases/latest/download`, writes `seed.json` if absent, and starts it. Both assets are published by the `supervisor` workflow.
+- **Provisioning is delegated to `uv`.** The supervisor downloads no python and resolves no dependency; the only network code left fetches `uv` itself — one zip, one sha256, refused outright if it does not match. `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` keep uv inside the workspace.
+- Layered fingerprints in `state.json` decide what to rebuild — uv, interpreter, venv, requirements — so a plugin change never re-downloads an interpreter. A phase is recorded as well as a hash, because an interrupted install leaves a venv that looks finished.
+- A malformed config refuses to start rather than falling back to discovery.
 - The child is assigned to a **job object**, so the app dies with the launcher however the launcher dies — otherwise a force-kill would orphan it and the next launch would give two avatars.
-- Restarts the app on failure (3 attempts by default), exits when the app exits cleanly, single instance via a global mutex, logs everything including the child's output to `%LOCALAPPDATA%\avatar_project\launcher.log`.
-- Unpacking shells out to Windows' `tar.exe`; `System.Formats.Tar` mangles filenames in these archives.
+- Restarts the app on failure (3 by default in a rolling window), exits when it exits cleanly, single instance per workspace via a mutex, and logs everything including the child's output.
+- The app and the supervisor talk through files in the workspace, one writer each: the app writes `plugins.json` and `request.json`, the supervisor answers in `reply.json`. That is what `avatar_manager` drives.
 
-`setup.bat` does the same provisioning without the launcher: finds python 3.13+ or downloads the pinned standalone one, then `pip install`s every package from the repository subdirectories. `run.bat` starts an environment it already built. Both end at `avatar_core`, the installed entry module.
+`setup.bat` builds the same environment without the launcher: finds python 3.13+ or downloads a pinned standalone one, then `pip install`s every package from the repository. `run.bat` starts an environment it already built. Both end at `avatar_core`, the installed entry module.
 
-Still missing for a real release: `avatar_project` is a private repository, so installing from it needs credentials, and the packages are not published anywhere.
+The GitHub workflows publish `supervisor.exe`, `config.json`, `install.bat` and a wheel per package on a `v*` tag.
 
 ## Windows
 

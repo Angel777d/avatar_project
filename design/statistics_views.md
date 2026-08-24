@@ -55,7 +55,7 @@ That addition is in — the table below is what it unlocks, and the views themse
 
 ## Export
 
-A `@Slot` writing the spans of the selected range as csv beside the database — `%LOCALAPPDATA%\avatar_project\time-<from>-<to>.csv`, one row per record, then `request.notification.show` with the path so the avatar says where it went. No file dialog: `QAsyncioEventLoop` runs the loop and a modal native dialog inside it is a hang waiting to happen.
+An event writing the spans of the selected range as csv beside the database — `data\time-<from>-<to>.csv`, under the working directory, one row per record, then `request.notification.show` with the path so the avatar says where it went. No file dialog: a modal native dialog would block the one thread every window is drawn on.
 
 ## Implementation
 

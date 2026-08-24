@@ -1,5 +1,4 @@
 import csv
-import os
 from pathlib import Path
 from typing import Tuple
 
@@ -8,13 +7,13 @@ from avatar_api import DataStorage
 from avatar_stats.components import DEFAULT_RANGE
 from avatar_stats.summary import build_snapshot
 
-APP_FOLDER = "avatar_project"
+DATA_FOLDER = "data"
 COLUMNS = ("day", "time", "kind", "type", "label", "source", "seconds", "tags")
 
 
 def folder() -> Path:
-	root = os.environ.get("LOCALAPPDATA") or Path.home()
-	return Path(root) / APP_FOLDER
+	"""Beside the database, which follows the working directory."""
+	return Path.cwd() / DATA_FOLDER
 
 
 def write_csv(data_storage: DataStorage,

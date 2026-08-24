@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Callable, Dict, Mapping, Optional, Tuple, Union
 
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QMainWindow, QTabWidget
@@ -35,13 +35,6 @@ class TabbedWindow(QMainWindow):
 			self.__on_close()
 		super().closeEvent(event)
 
-	@property
-	def titles(self) -> List[str]:
-		return [self.tabs.tabText(index) for index in range(self.tabs.count())]
-
-	def page(self, title: str) -> Optional[HtmlPage]:
-		return self.__pages.get(title)
-
 	def add_page(self,
 	             title: str,
 	             page: Union[str, Path],
@@ -68,7 +61,3 @@ class TabbedWindow(QMainWindow):
 		if html is not None:
 			self.tabs.setCurrentWidget(html)
 		return html
-
-	@property
-	def current(self) -> str:
-		return self.tabs.tabText(self.tabs.currentIndex())

@@ -60,7 +60,8 @@ echo installing the app and its plugins from github
     "avatar_kanban @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/kanban" ^
     "avatar_calendar @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/calendar" ^
     "avatar_pomodoro @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/pomodoro" ^
-    "avatar_stats @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/stats" || goto fail
+    "avatar_stats @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/stats" ^
+    "avatar_manager @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/manager" || goto fail
 
 echo(
 echo done. installed:
