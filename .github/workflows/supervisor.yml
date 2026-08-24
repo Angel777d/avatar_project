@@ -25,12 +25,22 @@ jobs:
           -p:IncludeNativeLibrariesForSelfExtract=true
           -o publish
 
+      - run: >
+          Copy-Item supervisor/samples/config.json publish/config.json;
+          Copy-Item supervisor/samples/install.bat publish/install.bat
+
       - uses: actions/upload-artifact@v4
         with:
-          name: supervisor.exe
-          path: publish/supervisor.exe
+          name: supervisor
+          path: |
+            publish/supervisor.exe
+            publish/config.json
+            publish/install.bat
 
       - if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: publish/supervisor.exe
+          files: |
+            publish/supervisor.exe
+            publish/config.json
+            publish/install.bat

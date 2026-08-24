@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -15,15 +14,14 @@ from avatar_api.registry import NAME_FIELD
 
 logger = logging.getLogger(__name__)
 
-APP_FOLDER = "avatar_project"
+DATA_FOLDER = "data"
 DB_NAME = "avatar.db"
 
 SCHEMA_TABLE = "core_schema"
 
 
 def default_path() -> Path:
-	root = os.environ.get("LOCALAPPDATA") or Path.home()
-	return Path(root) / APP_FOLDER / DB_NAME
+	return Path.cwd() / DATA_FOLDER / DB_NAME
 
 
 class Storage:
