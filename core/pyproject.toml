@@ -19,5 +19,8 @@ dependencies = [
 
 license = "MIT"
 
+[project.gui-scripts]
+avatar-core = "avatar_core:main"
+
 [tool.setuptools.packages.find]
 include = ["avatar_core*"]

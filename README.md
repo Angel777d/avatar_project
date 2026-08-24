@@ -23,8 +23,8 @@ run.bat          start it
 Working from a checkout instead:
 
 ```
-python -m pip install -e ../py_core -e api -e ui -e core -e host -e plugins/avatar -e plugins/kanban -e plugins/calendar -e plugins/pomodoro -e plugins/stats
-.venv\Scripts\pythonw.exe -m avatar_host
+python -m pip install -e ../py_core -e api -e ui -e core -e plugins/avatar -e plugins/kanban -e plugins/calendar -e plugins/pomodoro -e plugins/stats
+.venv\Scripts\pythonw.exe -m avatar_core
 ```
 
 Packages, the plugin contract and the data model are in [ARCHITECTURE.md](ARCHITECTURE.md).

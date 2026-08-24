@@ -11,5 +11,5 @@ if not exist "%VENV%\Scripts\pythonw.exe" (
     exit /b 1
 )
 
-start "" "%VENV%\Scripts\pythonw.exe" -m avatar_host
+start "" "%VENV%\Scripts\pythonw.exe" -m avatar_core
 exit /b 0

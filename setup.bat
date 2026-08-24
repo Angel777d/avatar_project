@@ -56,7 +56,6 @@ echo installing the app and its plugins from github
     "avatar.api @ git+%APP_REPO%@%BRANCH%#subdirectory=api" ^
     "avatar.ui @ git+%APP_REPO%@%BRANCH%#subdirectory=ui" ^
     "avatar.core @ git+%APP_REPO%@%BRANCH%#subdirectory=core" ^
-    "avatar.host @ git+%APP_REPO%@%BRANCH%#subdirectory=host" ^
     "avatar_default @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/avatar" ^
     "avatar_kanban @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/kanban" ^
     "avatar_calendar @ git+%APP_REPO%@%BRANCH%#subdirectory=plugins/calendar" ^
@@ -72,7 +71,7 @@ echo python: %VPY%
 if defined RUN (
     echo(
     echo starting the avatar
-    start "" "%VENV%\Scripts\pythonw.exe" -m avatar_host
+    start "" "%VENV%\Scripts\pythonw.exe" -m avatar_core
 ) else (
     echo(
     echo start it with:  run.bat

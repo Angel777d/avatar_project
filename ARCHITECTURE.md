@@ -6,9 +6,8 @@
 | --- | --- | --- |
 | `angelovich.core` | ECS `DataStorage`, `Dispatcher`, `System`, plugin discovery (sibling repo `../py_core`) | — |
 | `avatar.api` | components, event names, `Env`, `TypeRegistry` | `angelovich.core` |
-| `avatar.core` | main loop, systems, plugin policy, storage, timers | `avatar.api` |
-| `avatar.host` | the Qt entry point: `QApplication`, `QtAsyncio`, `avatar_host` | `avatar.core`, PySide6 |
-| `avatar.ui` | `HtmlPage`, `TabbedWindow`, `HtmlWindow`, `TransparentWindow`; also a plugin itself, contributing `ShellSystem` | `avatar.api`, PySide6 |
+| `avatar.core` | main loop, systems, plugin policy, storage, timers, the entry point (`python -m avatar_core`) | `avatar.api` |
+| `avatar.ui` | `HtmlPage`, `TabbedWindow`, `HtmlWindow`, `TransparentWindow`; also a plugin itself, contributing `UiSystem` | `avatar.api`, PySide6 |
 | `plugins/*` | `avatar_default`, `avatar_kanban`, `avatar_calendar`, `avatar_pomodoro`, `avatar_stats` | `avatar.api`, `avatar.ui` |
 
 **Dependency rule: a plugin depends on the api and the ui, never on the core.** `avatar.api` re-exports everything a plugin needs, so `angelovich.core` is not a plugin dependency either. Core depends on api; api never on core.
@@ -24,8 +23,10 @@
 
 ## Runtime
 
-- Core is Qt-free. A host creates the `QApplication`, then `QtAsyncio.run(app.run())` — one loop, Qt's, driving asyncio.
-- `setQuitOnLastWindowClosed(False)` is required, or closing a plugin window kills the app mid-`await` and skips the save.
+- Core is Qt-free: `avatar_core.main` is a bare `asyncio.run(application.run())`, nothing more. Qt exists nowhere in this process except inside `avatar.ui`'s own thread.
+- **`avatar.ui`'s `UiSystem` owns the only `QApplication` in the process**, created on a dedicated thread it starts in its own `start()`, running its own `QtAsyncio` loop so `HtmlPage`'s async page-load code keeps working. No other system, and no plugin, may touch Qt.
+- What crosses the thread boundary: a lock-guarded copy (`avatar_ui.sync.Guarded`) carries state from the asyncio thread to the Qt thread (window/page/avatar view components); `loop.call_soon_threadsafe` carries events the other way, from a Qt callback back onto the asyncio loop. Neither side ever touches the other's objects directly.
+- `setQuitOnLastWindowClosed(False)` is required, or closing a plugin window kills the Qt thread and orphans the app.
 - `QAsyncioEventLoop` has no networking or subprocess support — use `QNetworkAccessManager`, `QtWebSockets`, `QProcess`.
 - Order: systems `start` → storage load → `action.storage.restored` → tick loop → storage save → systems `stop` → `close`.
 - Systems never call each other: shared state through `DataStorage`, coordination through the event bus.
@@ -38,7 +39,6 @@
 | --- | --- |
 | `request.app.close` | unwind the application |
 | `request.notification.show` | show this `NotificationEC` — the avatar queues and speaks them |
-| `request.page.register` (title, path, objects, window="") | contribute a page; it becomes a tab in that window |
 | `request.page.show` (title, window="") | open the window and select that tab |
 | `request.timer.start` (name, started, duration) | run a named timer; starting an existing name replaces it |
 | `request.timer.cancel` (name) | drop it silently |
@@ -55,7 +55,7 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 
 `supervisor/` is a .NET 9 `WinExe` (`avatar.exe`). It is the only thing a user runs.
 
-- **Development**: with no `bootstrap.json` beside it, it walks up from its own directory for `.venv\Scripts\pythonw.exe` and runs `experiments\host.py` from that root.
+- **Development**: with no `bootstrap.json` beside it, it walks up from its own directory for `.venv\Scripts\pythonw.exe` and runs `avatar_core` from that root.
 - **Release**: `bootstrap.json` (see `bootstrap.example.json`) makes it provision instead — download a pinned standalone CPython, check its sha256, unpack, build a venv, `pip install` the configured packages, then run the configured entry module. The runtime lives in `%LOCALAPPDATA%\avatar_project\runtime`.
 - Provisioning is skipped when a state file matches a fingerprint of the url, checksum, index and package list; change any of them and the next launch re-provisions.
 - A missing or wrong checksum refuses the download rather than running it. A malformed config refuses to start rather than falling back to discovery.
@@ -63,19 +63,19 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 - Restarts the app on failure (3 attempts by default), exits when the app exits cleanly, single instance via a global mutex, logs everything including the child's output to `%LOCALAPPDATA%\avatar_project\launcher.log`.
 - Unpacking shells out to Windows' `tar.exe`; `System.Formats.Tar` mangles filenames in these archives.
 
-`setup.bat` does the same provisioning without the launcher: finds python 3.13+ or downloads the pinned standalone one, then `pip install`s every package from the repository subdirectories. `run.bat` starts an environment it already built. Both end at `avatar_host`, the installed entry module — `experiments/host.py` only exists in a checkout.
+`setup.bat` does the same provisioning without the launcher: finds python 3.13+ or downloads the pinned standalone one, then `pip install`s every package from the repository subdirectories. `run.bat` starts an environment it already built. Both end at `avatar_core`, the installed entry module.
 
 Still missing for a real release: `avatar_project` is a private repository, so installing from it needs credentials, and the packages are not published anywhere.
 
 ## Windows
 
-Plugins do not own windows. A plugin registers a page and asks for it by title; `avatar.ui`'s own plugin, `ShellSystem`, owns the windows and puts each page in a tab.
+Plugins do not own windows. A page is registered by attaching `WindowEC` (title, window name) and `TabViewEC` (html path, webchannel object name, a JSON snapshot the plugin keeps current, and a method-name-to-event map) to an entity — `avatar.ui`'s own plugin, `UiSystem`, owns the windows and puts each such entity's page in a tab. Adding `RenderDirtyEC` to that entity is what tells `UiSystem` to look at it; it clears the marker once it has.
 
 - One window per **window name**, default `""`. Pass a name to get a second window instead of another tab, and the name is the window's title: `avatar_stats` registers under `Statistics` and opens beside the main window rather than crowding it.
 - A window is created on the first `request.page.show` for it, and a tab's web view is built and loaded the first time that tab is shown — registering costs nothing.
 - Tabs appear in registration order, which follows plugin discovery order.
 - **Minimum window size is 720x520** and the default is 960x640, so a page must stay usable at the minimum: fill the space or centre in it. Pomodoro centres, kanban and calendar fill.
-- `ShellSystem` subscribes in its constructor rather than in `start()`, because plugins register their pages during `start()` and system start order follows discovery order.
+- A page's `QObject` bridge is generic (`avatar_ui.bridge.Bridge`: `state()`, `invoke()`, `changed`) and lives entirely on the Qt thread; a plugin never constructs one. `avatar_ui/assets/bridge.js`, injected before any page script runs, is what lets page JS keep calling named methods (`board.move_card(...)`) against that generic object.
 
 ## Data
 

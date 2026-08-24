@@ -14,14 +14,13 @@
 		"D:/Work/avatar_project/api",
 		"D:/Work/avatar_project/core",
 		"D:/Work/avatar_project/ui",
-		"D:/Work/avatar_project/host",
 		"D:/Work/avatar_project/plugins/avatar"
 	],
 
 	"processes": [
 		{
 			"name": "app",
-			"module": "avatar_host",
+			"module": "avatar_core",
 			"required": true,
 			"restart": "never"
 		}

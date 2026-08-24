@@ -20,8 +20,6 @@ jobs:
             path: core
           - name: avatar-ui
             path: ui
-          - name: avatar-host
-            path: host
           - name: avatar-default
             path: plugins/avatar
           - name: avatar-kanban
