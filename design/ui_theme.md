@@ -60,9 +60,9 @@ Nothing is invented here that no page has asked for. A component earns its place
 
 ## Delivery
 
-`page.py` already injects shared assets, and `SHARED` gains `theme.css`. Two things about *how* have to change.
+`page.py` injects the theme on its own rather than through `SHARED`, because two things about *how* differ.
 
-**It must arrive before the page's own styles.** Injection currently happens after `loadFinished`, appending to `<head>`, so a shared rule would land *after* the page's `<style>` and win ties it should lose — a base layer must be overridable by the page that uses it. Registering the theme as a `QWebEngineScript` at `DocumentCreation` puts it in the document before the page's own style element is parsed, which is both the correct cascade order and the fix for the second problem.
+**It must arrive before the page's own styles.** `SHARED` is injected after `loadFinished`, appending to `<head>`, so a shared rule would land *after* the page's `<style>` and win ties it should lose — a base layer must be overridable by the page that uses it. Registering the theme as a `QWebEngineScript` at `DocumentCreation` puts it in the document before the page's own style element is parsed, which is both the correct cascade order and the fix for the second problem.
 
 **At DocumentCreation the document is empty** — not just `document.head` but `document.documentElement` is null, so a script that reaches for either finds nothing and silently does nothing. The theme script waits with a `MutationObserver` and inserts the moment `head` exists, which is still before the page's own `<style>` is parsed. Without that wait the injection appears to be registered and simply never happens.
 
