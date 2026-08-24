@@ -7,8 +7,6 @@ from avatar_api.components import DateEC, NoteEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_api.tags import apply_tags, names_from, tags_of
 from avatar_api.timelog import DURATION, SOURCE, SPAN, STARTED, log_data, measure
-from avatar_ui.components import RenderDirtyEC, TabEC, TabViewEC
-
 from avatar_calendar.components import CalendarNoteEC
 from avatar_calendar.window import (
 	CHANNEL,
@@ -22,6 +20,7 @@ from avatar_calendar.window import (
 	build_snapshot,
 	shift_month,
 )
+from avatar_ui.components import RenderDirtyEC, TabEC, TabViewEC
 
 MENU_ITEM = "Open calendar"
 PAGE_TITLE = "Calendar"
@@ -64,23 +63,25 @@ class CalendarSystem(System):
 		await super().stop()
 
 	def __register(self):
-		self.__entity = self.env.data_storage.create_entity()
-		self.__entity.add_component(TabEC(PAGE_TITLE))
-		self.__entity.add_component(TabViewEC(PAGE, CHANNEL, self.__snapshot(), METHODS))
-		self.__mark_dirty()
+		entity = self.env.data_storage.create_entity()
+		entity.add_component(TabEC(PAGE_TITLE))
+		entity.add_component(TabViewEC(PAGE, CHANNEL, self.__snapshot(), METHODS))
+		self.__entity = entity
+		self.__mark_dirty(entity)
 
 	def __snapshot(self) -> str:
 		return json.dumps(build_snapshot(self.env.data_storage, self.__focus))
 
-	def __mark_dirty(self):
-		if not self.__entity.has_component(RenderDirtyEC):
-			self.__entity.add_component(RenderDirtyEC())
+	@staticmethod
+	def __mark_dirty(entity: Entity):
+		if not entity.has_component(RenderDirtyEC):
+			entity.add_component(RenderDirtyEC())
 
 	def __changed(self):
 		if self.__entity is None:
 			return
 		self.__entity.get_component(TabViewEC).snapshot = self.__snapshot()
-		self.__mark_dirty()
+		self.__mark_dirty(self.__entity)
 
 	async def __on_month(self, offset: int):
 		self.__focus = shift_month(date.today(), offset)
@@ -98,7 +99,8 @@ class CalendarSystem(System):
 	async def __on_storage_changed(self):
 		self.__changed()
 
-	def __overlap(self, entity: Entity, begins: datetime, ends: datetime) -> Tuple[float, datetime]:
+	@staticmethod
+	def __overlap(entity: Entity, begins: datetime, ends: datetime) -> Tuple[float, datetime]:
 		entry = entity.get_component(CalendarNoteEC)
 		if entry.begin is None or entry.end is None:
 			return 0.0, begins

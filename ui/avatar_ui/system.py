@@ -216,7 +216,11 @@ class UiSystem(System):
 		self.__loop.call_soon_threadsafe(run)
 
 	def window_closed(self, entity_id: int) -> None:
-		"""The user closed the window, so the window entity is what goes away."""
+		"""The user closed the window, so the window entity is what goes away.
+		Teardown closes every window too, and that is not the user asking for anything."""
+		if self.__stopping.is_set():
+			return
+
 		def run():
 			entity = self.env.data_storage.get_entity(entity_id)
 			if entity is not None:
