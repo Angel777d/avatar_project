@@ -82,7 +82,9 @@ One element of a registry's `plugins` array — what is known about a plugin bef
 
 **It is advisory; the gate is authoritative.** The flag exists so the button can read "Update (restart required)" before the click rather than after. An author who forgets it is caught by the gate and by the unload failing; one who sets it needlessly costs a restart nobody needed. It decides nothing except what the user is told.
 
-## The seed
+## The seed — not built
+
+Nothing reads a seed file today. The catalogue ships inside the plugin manager and `config.json` names the plugins a fresh install starts with, which covers first run without this. The rest of the section is the design if that stops being enough.
 
 The `.bat` writes `seed.json` on a fresh install and never again:
 

@@ -18,8 +18,6 @@ mkdir "%DIR%" 2>nul
 curl -fsSL -o "%DIR%\supervisor.exe" "%BASE%/supervisor.exe" || goto :fail
 curl -fsSL -o "%DIR%\config.json"    "%BASE%/config.json"    || goto :fail
 
-if not exist "%DIR%\seed.json" >"%DIR%\seed.json" echo {"registries":["https://raw.githubusercontent.com/example/registry/main/registry.json"],"plugins":["example-notes","example-charts"]}
-
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Join-Path ([Environment]::GetFolderPath('Desktop')) '%NAME%.lnk'; if (-not (Test-Path $p)) { $s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); $s.TargetPath = '%DIR%\supervisor.exe'; $s.WorkingDirectory = '%DIR%'; $s.Description = '%NAME%'; $s.Save() }" >nul 2>&1
 
 start "" "%DIR%\supervisor.exe"
@@ -35,11 +33,11 @@ Two downloads, no admin, no python, no git. `curl.exe` ships with Windows 10 180
 
 **Releases live on GitHub**, so there is no server to run. `releases/latest/download/<asset>` redirects to the newest release, which keeps the `.bat` version-free — written once, works indefinitely.
 
-**The `.bat` defines the bundle.** `seed.json` names the registries to start from and the plugins to install, and it is written only when absent, so re-running the installer never overwrites a user's choices. Publishing a different default set is publishing a different `.bat` — nothing else has to change, and nothing else has to be hosted. It is one line of JSON because `cmd` escaping punishes anything longer: `%`, `&`, `|`, `<` and `>` all need care inside `echo`, and plugin *names* avoid every one of them where full requirement strings would not.
+**`config.json` defines the bundle.** It names what a fresh install runs with: the three packages that are not optional — api, core and ui — plus the plugins that ship turned on. Everything else is chosen later from the catalogue, which travels inside the plugin manager rather than being hosted anywhere. Publishing a different default set is publishing a different `config.json`, which the installer already downloads.
 
-**The supervisor never reads `seed.json`.** It is the app's file, consumed on first run — see [plugin_runtime.md](plugin_runtime.md). The first launch therefore installs only the config's own packages; the app then resolves the seed and asks for the rest through the ordinary live path, which is the same path every later plugin change takes.
+The seed file described in [plugin_runtime.md](plugin_runtime.md) is not built. The installer writes no `seed.json`, because nothing reads one.
 
-**The desktop shortcut is asked for, never assembled.** `%USERPROFILE%\Desktop` is wrong wherever OneDrive has redirected the folder, so the path comes from the shell. It is written only when absent, like `seed.json`, so moving or deleting it is a choice the next update respects, and failing to create one never fails the install.
+**The desktop shortcut is asked for, never assembled.** `%USERPROFILE%\Desktop` is wrong wherever OneDrive has redirected the folder, so the path comes from the shell. It is written only when absent, so moving or deleting it is a choice the next update respects, and failing to create one never fails the install.
 
 **The installer is the updater.** Re-running it overwrites the executable and the config, both vendor-owned, and touches nothing else. The venv, the plugin list, the registries and the logs survive, and the next launch reconciles against the new config.
 
@@ -80,7 +78,7 @@ A process is `module`, `script` or raw `args` — one of the three, resolved int
 
 ## Files
 
-Five that the supervisor touches, each with exactly one writer. That is the whole coordination design. The app keeps files of its own in the same folder — `seed.json`, the registry list, the registry cache — and the supervisor neither reads nor knows about any of them.
+Five that the supervisor touches, each with exactly one writer. That is the whole coordination design. The app keeps files of its own in the same folder — the registry list and the registry cache — and the supervisor neither reads nor knows about any of them.
 
 | file | owner | written by | read by |
 | --- | --- | --- | --- |

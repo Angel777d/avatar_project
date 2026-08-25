@@ -14,7 +14,8 @@
 		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.1/avatar_api-0.1.1-py3-none-any.whl",
 		"avatar.core @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.1/avatar_core-0.1.1-py3-none-any.whl",
 		"avatar.ui @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.1/avatar_ui-0.1.1-py3-none-any.whl",
-		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.1/avatar_default-0.1.1-py3-none-any.whl"
+		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.1/avatar_default-0.1.1-py3-none-any.whl",
+		"avatar_manager @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.1/avatar_manager-0.1.1-py3-none-any.whl"
 	],
 
 	"processes": [

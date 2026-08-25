@@ -41,6 +41,11 @@ jobs:
 
       - run: python -m pip install --upgrade build
 
+      # avatar_manager carries the plugin catalogue, and its urls point at the release
+      # being built. Stamping the tag in is what stops the catalogue naming an older one.
+      - if: startsWith(github.ref, 'refs/tags/')
+        run: python .github/stamp_version.py "${GITHUB_REF_NAME}"
+
       - run: python -m build --wheel --outdir dist ${{ matrix.path }}
 
       - uses: actions/upload-artifact@v4
