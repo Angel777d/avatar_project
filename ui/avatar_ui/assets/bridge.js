@@ -4,8 +4,11 @@
 	const wrap = (object) => {
 		const call = (name, args) => {
 			const resolve = typeof args[args.length - 1] === "function" ? args.pop() : null;
-			if (args.length) object.invoke(name, JSON.stringify(args));
-			if (resolve) object.state(resolve);
+			if (resolve) {
+				object.state(resolve);
+				return;
+			}
+			object.invoke(name, JSON.stringify(args));
 		};
 
 		return new Proxy(object, {
