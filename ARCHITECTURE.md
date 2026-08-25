@@ -44,7 +44,7 @@
 | `request.log.time` (measured) | a span passed — `span`, `started`, `duration`, `source`. Whoever can name what it *was* answers with `action.log.data` |
 | `action.log.data` (record) | that span, named: plus `type`, `label`, `ref`, `tags`, `data`. `avatar_stats` files it. `avatar_api.timelog` builds and dispatches both |
 | `action.notification.shown` | one finished being displayed |
-| `action.storage.restored` | entities are back; seed defaults and refresh pages here |
+| `action.storage.restored` | entities are back; create defaults and refresh pages here |
 | `action.storage.changed` | shared data a plugin does not own has moved — anything displaying it refreshes. Announce it when touching a component another plugin reads, `DateEC` above all; your own components do not need it |
 
 A plugin's own events are its own business — `request.kanban.*`, `request.pomodoro.*` and so on live with the plugin.
@@ -88,7 +88,7 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 `supervisor/` is a .NET 9 `WinExe` (`supervisor.exe`), the only thing a user runs. [design/supervisor.md](design/supervisor.md) has the reasoning.
 
 - **The workspace is the directory the executable sits in**: `config.json`, the private `uv`, the interpreter, the `.venv`, `data\avatar.db`, `supervisor.log`. Uninstalling is deleting one folder.
-- `supervisor/samples/install.bat` fetches `supervisor.exe` and `config.json` from `releases/latest/download`, writes `seed.json` if absent, and starts it.
+- `supervisor/samples/install.bat` fetches `supervisor.exe` and `config.json` from `releases/latest/download`, leaves a desktop shortcut, and starts it.
 - **Provisioning is delegated to `uv`.** The supervisor downloads no python and resolves no dependency; the only network code left fetches `uv` itself — one zip, one sha256, refused outright on a mismatch. `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` keep it inside the workspace.
 - Layered fingerprints in `state.json` decide what to rebuild — uv, interpreter, venv, requirements — so a plugin change never re-downloads an interpreter. A phase is recorded alongside each hash, because an interrupted install leaves a venv that looks finished.
 - A malformed config refuses to start rather than falling back to discovery.

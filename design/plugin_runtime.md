@@ -54,7 +54,7 @@ A registry has a `url` or a `path`, never both. **A local file is read fresh eve
 
 **Order decides collisions.** Two registries offering the same plugin name is normal — a fork, a fresher build, a local copy of something official. The first in the list wins, and the interface always shows which registry an entry came from. No voting, no merging of entries, nothing that depends on fetch timing.
 
-**Precedence is decided at runtime, never stored.** The file is appended to on add and cut from on remove, and is never rewritten to reorder — that is the third kind of write it does not have. The app builds the order when it loads the registries: a local path outranks a remote one, and otherwise they rank as they appear in the file, which is the order they were added with the seed's first. A developer's local registry therefore overrides the official entry for the same plugin without anyone configuring anything, because that is the only reason to have pointed at a file on disk.
+**Precedence is decided at runtime, never stored.** The file is appended to on add and cut from on remove, and is never rewritten to reorder — that is the third kind of write it does not have. The app builds the order when it loads the registries: a local path outranks a remote one, and otherwise they rank as they appear in the file, which is the order they were added. A developer's local registry therefore overrides the official entry for the same plugin without anyone configuring anything, because that is the only reason to have pointed at a file on disk.
 
 The interface may reorder the list within a session, and that decides which entry wins while the app runs. It is not written back — the next launch recomputes the same default from the rule, so precedence never depends on a state nobody remembers setting.
 
@@ -82,27 +82,11 @@ One element of a registry's `plugins` array — what is known about a plugin bef
 
 **It is advisory; the gate is authoritative.** The flag exists so the button can read "Update (restart required)" before the click rather than after. An author who forgets it is caught by the gate and by the unload failing; one who sets it needlessly costs a restart nobody needed. It decides nothing except what the user is told.
 
-## The seed — not built
-
-Nothing reads a seed file today. The catalogue ships inside the plugin manager and `config.json` names the plugins a fresh install starts with, which covers first run without this. The rest of the section is the design if that stops being enough.
-
-The `.bat` writes `seed.json` on a fresh install and never again:
-
-```json
-{ "registries": ["https://raw.githubusercontent.com/example/registry/main/registry.json"], "plugins": ["example-notes", "example-charts"] }
-```
-
-**Plugin names, not requirement strings.** A name survives `cmd` escaping, and it does not go stale when a version moves — the registry already knows the current requirement, so the `.bat` never needs republishing because a plugin was released.
-
-**First run turns the seed into the two real files.** The app creates `registries.json` from the seed's registries, fetches them, resolves each named plugin to its requirement, writes `plugins.json` and asks the supervisor to install it — the same live path every later change uses, with nothing special-cased. Afterwards the seed is inert: the files it created are the ones that count.
-
-**Offline, or a name that resolves to nothing, is not fatal.** Those plugins are simply not installed, they are reported, and the resolution is retried on a later launch. The app itself is already running by then, because the supervisor installed the config's packages before any of this.
-
-**A registry added by the vendor later reaches nobody**, because `registries.json` already exists on every installed machine. If that becomes a problem, the fix is a vendor-owned list in `config.json` that is always active alongside the user's — the same split a package manager draws between system sources and user sources. Not needed yet; worth knowing the shape of it before the first time it is.
-
 ## Publishing a plugin
 
 **Publish as a GitHub release wheel.** Of the four forms the supervisor accepts, that one carries a `#sha256=` fragment, so a plugin is verified exactly as the interpreter is; it installs without building, so no third-party `setup.py` runs on a user's machine; and it needs no git. An archive at a tag is the same thing without the integrity guarantee. `git+` exists for development and branch-tracking, which is the only thing the others cannot do — and a branch ref hashes the same tomorrow as today, so nothing reinstalls until the app increments `revision` to say an update is due. That is what makes "update this plugin" work for a moving ref without the supervisor understanding git.
+
+**The built-in catalogue is the one exception, and omits the fragment.** It ships inside `avatar_manager` and names wheels built by the same release, so their hashes do not exist when it is packaged. A registry hosted separately, published after the wheels it points at, has no such excuse.
 
 ## What python actually allows
 

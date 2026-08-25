@@ -35,8 +35,6 @@ Two downloads, no admin, no python, no git. `curl.exe` ships with Windows 10 180
 
 **`config.json` defines the bundle.** It names what a fresh install runs with: the three packages that are not optional — api, core and ui — plus the plugins that ship turned on. Everything else is chosen later from the catalogue, which travels inside the plugin manager rather than being hosted anywhere. Publishing a different default set is publishing a different `config.json`, which the installer already downloads.
 
-The seed file described in [plugin_runtime.md](plugin_runtime.md) is not built. The installer writes no `seed.json`, because nothing reads one.
-
 **The desktop shortcut is asked for, never assembled.** `%USERPROFILE%\Desktop` is wrong wherever OneDrive has redirected the folder, so the path comes from the shell. It is written only when absent, so moving or deleting it is a choice the next update respects, and failing to create one never fails the install.
 
 **The installer is the updater.** Re-running it overwrites the executable and the config, both vendor-owned, and touches nothing else. The venv, the plugin list, the registries and the logs survive, and the next launch reconciles against the new config.
