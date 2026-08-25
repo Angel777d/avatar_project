@@ -47,7 +47,6 @@ class UiSystem(System):
 		super().__init__(env)
 		self.__loop: Optional[asyncio.AbstractEventLoop] = None
 		self.__thread: Optional[threading.Thread] = None
-		self.__app: Optional[QApplication] = None
 		self.__ready = threading.Event()
 		self.__stopping = threading.Event()
 		self.__failure: Optional[BaseException] = None
@@ -230,10 +229,14 @@ class UiSystem(System):
 	# --- Qt thread: its own loop, never reaches into env.data_storage or env.event_bus ---
 
 	def __run_qt(self):
+		# The QApplication is deliberately a local and is never stored: it belongs to this
+		# thread, and whatever still points at it when the thread ends is what destroys it.
+		# Held on the system, the main thread drops the last reference at interpreter
+		# shutdown and Qt tears the application down on the wrong thread - a clean exit
+		# followed by an access violation, which the supervisor reads as a crash to restart.
 		try:
 			app = QApplication([])
 			app.setQuitOnLastWindowClosed(False)
-			self.__app = app
 
 			self.__avatar_widget = AvatarWidget(self.post_event, self.trigger_menu)
 			self.__avatar_widget.show()
@@ -247,6 +250,11 @@ class UiSystem(System):
 		self.__ready.set()
 		# keep_running=False: when __qt_loop returns, the Qt loop stops and this thread ends.
 		QtAsyncio.run(self.__qt_loop(), keep_running=False, handle_sigint=False)
+
+		# Tear the application down here, on the thread that owns it. Left to the interpreter
+		# it is destroyed from the main thread at shutdown, which access-violates after a
+		# clean exit - and an exit code the supervisor reads as a crash worth restarting.
+		app.shutdown()
 
 	async def __qt_loop(self):
 		while not self.__stopping.is_set():
