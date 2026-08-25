@@ -88,7 +88,7 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 `supervisor/` is a .NET 9 `WinExe` (`supervisor.exe`), the only thing a user runs. [design/supervisor.md](design/supervisor.md) has the reasoning.
 
 - **The workspace is the directory the executable sits in**: `config.json`, the private `uv`, the interpreter, the `.venv`, `data\avatar.db`, `supervisor.log`. Uninstalling is deleting one folder.
-- `supervisor/samples/install.bat` fetches `supervisor.exe` and `config.json` from `releases/latest/download`, leaves a desktop shortcut, and starts it.
+- `install.bat` at the repository root fetches `supervisor.exe` and `config.json` from `releases/latest/download`, leaves a desktop shortcut, and starts it. It is the only thing a user downloads, and re-running it is the update.
 - **Provisioning is delegated to `uv`.** The supervisor downloads no python and resolves no dependency; the only network code left fetches `uv` itself — one zip, one sha256, refused outright on a mismatch. `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` keep it inside the workspace.
 - Layered fingerprints in `state.json` decide what to rebuild — uv, interpreter, venv, requirements — so a plugin change never re-downloads an interpreter. A phase is recorded alongside each hash, because an interrupted install leaves a venv that looks finished.
 - A malformed config refuses to start rather than falling back to discovery.
@@ -96,4 +96,4 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 - Restarts on failure (3 in a rolling window by default), exits when the app exits cleanly, one instance per workspace via a mutex, and logs the child's output.
 - App and supervisor talk through files in the workspace, one writer each: the app writes `plugins.json` and `request.json`, the supervisor answers in `reply.json`. That is what `avatar_manager` drives.
 
-`setup.bat` builds the same environment without the launcher, then `run.bat` starts it; both end at `avatar_core`. The GitHub workflows publish `supervisor.exe`, `config.json`, `install.bat` and a wheel per package on a `v*` tag.
+A checkout runs `avatar_core` directly out of an editable install; the README has the line. The GitHub workflows publish `supervisor.exe`, `config.json`, `install.bat` and a wheel per package on a `v*` tag.

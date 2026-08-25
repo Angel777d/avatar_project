@@ -12,14 +12,11 @@ Right-click the avatar for the menu; everything else opens from there.
 - **manager** — the plugin catalogue: what is installed, what the registries offer, and applying a new set through the supervisor.
 - **stats** — where the time went, in a window of its own: a stopwatch, whatever the other plugins report, a week-by-hour rhythm, totals by task, tag, plugin and source, what was finished early or late, and a csv export.
 
-## Run
+## Install
 
-```
-setup.bat        build the environment and install everything from github
-run.bat          start it
-```
-
-`setup.bat --run` does both. It finds python 3.13+ or downloads one, so a machine needs nothing installed beyond git.
+Download and run [install.bat](install.bat). It fetches the launcher and its config from the
+latest release, leaves a desktop shortcut and starts the avatar. Nothing else is needed —
+no python, no git, no admin. Re-running it is how you update.
 
 Working from a checkout instead:
 

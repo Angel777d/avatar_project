@@ -30,7 +30,7 @@ jobs:
 
       - run: >
           Copy-Item supervisor/samples/config.json publish/config.json;
-          Copy-Item supervisor/samples/install.bat publish/install.bat
+          Copy-Item install.bat publish/install.bat
 
       - uses: actions/upload-artifact@v4
         with:
