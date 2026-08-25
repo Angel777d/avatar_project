@@ -30,7 +30,6 @@ class TabbedWindow(QMainWindow):
 		self.__on_close = on_close
 
 	def closeEvent(self, event):
-		# closing the window is the user removing its entity, not a widget hiding itself
 		if self.__on_close is not None:
 			self.__on_close()
 		super().closeEvent(event)

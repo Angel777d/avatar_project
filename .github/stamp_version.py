@@ -1,10 +1,3 @@
-"""Point every packaged version and release url at the tag being built.
-
-config.json and the plugin catalogue both name wheels by url, and those urls carry a
-version twice - once in the release tag, once in the wheel filename. Editing them by hand
-is how a release ends up installing the previous one, so the tag is stamped in instead.
-"""
-
 import re
 import sys
 from pathlib import Path

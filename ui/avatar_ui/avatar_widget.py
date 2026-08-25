@@ -26,9 +26,6 @@ BOB_AMPLITUDE = 5
 
 
 class AvatarWidget(TransparentWindow):
-	"""Paints from whatever apply() last handed it. Never touches the data storage or the bus
-	directly - that would be a different thread's data."""
-
 	def __init__(self, post_event: Callable[..., None], trigger_menu: Callable[[int], None]):
 		super().__init__((BUBBLE_MAX_W + 2 * MARGIN, AVATAR_SIZE + 96))
 		self.__post_event = post_event

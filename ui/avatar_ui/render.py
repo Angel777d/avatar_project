@@ -1,11 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
-# What crosses from the asyncio thread to the Qt thread through the guarded copy.
-# Plain data, no Qt types - building the real widget from one of these is a
-# straight field read, done only on the Qt side.
-
-
 @dataclass(frozen=True)
 class PageView:
 	title: str = ""

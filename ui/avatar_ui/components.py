@@ -7,8 +7,6 @@ DEFAULT_WINDOW = ""
 
 
 class WindowEC(EntityHashComponent):
-	"""A window, one entity each, keyed by name. Removing the entity closes it."""
-
 	def __init__(self, name: str = DEFAULT_WINDOW):
 		super().__init__()
 		self.name: str = name
@@ -25,8 +23,6 @@ class WindowEC(EntityHashComponent):
 
 
 class TabEC(EntityComponent):
-	"""A page hosted as a tab: what it is called and which window it belongs to."""
-
 	def __init__(self, title: str = "", window: str = DEFAULT_WINDOW):
 		super().__init__()
 		self.title: str = title
@@ -34,13 +30,10 @@ class TabEC(EntityComponent):
 
 
 class CurrentTabEC(EntityComponent):
-	"""Marker: the current tab of its window. Moving it switches tab and raises the window.
-	It is always removed and re-added, so asking for the tab already shown still raises."""
+	pass
 
 
 class TabViewEC(EntityComponent):
-	"""Render-ready data for an html page: the owning plugin keeps this current."""
-
 	def __init__(self,
 	             path: Union[str, Path] = "",
 	             channel: str = "",
@@ -54,8 +47,6 @@ class TabViewEC(EntityComponent):
 
 
 class AvatarViewEC(EntityComponent):
-	"""Render-ready data for the floating avatar widget."""
-
 	def __init__(self,
 	             bubble: str = "",
 	             timer_progress: float = -1.0,
@@ -67,4 +58,4 @@ class AvatarViewEC(EntityComponent):
 
 
 class RenderDirtyEC(EntityComponent):
-	"""Marker: this entity's view components changed. avatar_ui clears it once read."""
+	pass

@@ -12,7 +12,6 @@ COLUMNS = ("day", "time", "kind", "type", "label", "source", "seconds", "tags")
 
 
 def folder() -> Path:
-	"""Beside the database, which follows the working directory."""
 	return Path.cwd() / DATA_FOLDER
 
 

@@ -39,8 +39,6 @@ def style_script(path: Path, name: str) -> QWebEngineScript:
 
 
 def raw_script(path: Path, name: str) -> QWebEngineScript:
-	"""The page's own script constructs QWebChannel during load, so the shim
-	that intercepts it has to be there before a single line of page JS runs."""
 	script = QWebEngineScript()
 	script.setName(name)
 	script.setSourceCode(path.read_text(encoding="utf-8"))

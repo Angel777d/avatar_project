@@ -35,14 +35,6 @@ WATCHED = (WindowEC, CurrentTabEC, TabEC)
 
 
 class UiSystem(System):
-	"""Everything Qt lives on one dedicated thread with its own loop. The asyncio thread
-	that runs every other System never touches a widget - it only writes guarded copies
-	and posts commands, both of which are safe to cross a thread boundary.
-
-	Windows and tabs are entities: a WindowEC entity is a window and losing it closes one,
-	the CurrentTabEC marker is which tab is up. ADDED/REMOVED on those collections is the
-	only change notification the storage offers, and it is exactly the one this needs."""
-
 	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__loop: Optional[asyncio.AbstractEventLoop] = None
@@ -55,7 +47,6 @@ class UiSystem(System):
 		self.__avatar: Guarded[Optional[AvatarView]] = Guarded(None)
 		self.__commands: "queue.SimpleQueue[Callable[[], None]]" = queue.SimpleQueue()
 
-		# built on the Qt thread only - never touched from the asyncio side
 		self.__windows: Dict[str, TabbedWindow] = {}
 		self.__window_names: Dict[int, str] = {}
 		self.__built: Dict[int, Tuple[Bridge, HtmlPage]] = {}
@@ -76,12 +67,9 @@ class UiSystem(System):
 
 	async def stop(self):
 		await super().stop()
-		# a collection is its own Dispatcher, so System.stop() knows nothing about these
 		for component in WATCHED:
 			self.env.data_storage.get_collection(component).remove_all_listeners(self)
 
-		# The Qt thread tears itself down: widgets and the QApplication belong to it,
-		# and a daemon thread parked in Qt's C++ loop never returns to python to be killed.
 		self.__stopping.set()
 		if self.__thread is not None:
 			await asyncio.get_running_loop().run_in_executor(None, self.__thread.join, 5.0)
@@ -100,14 +88,11 @@ class UiSystem(System):
 		tabs = storage.get_collection(TabEC)
 		tabs.add_listener(tabs.EVENT_REMOVED, self.__on_tab_removed, scope=self)
 
-	# --- asyncio side: reads the storage, never touches a widget ---
-
 	async def __on_window_added(self, entity: Entity, component: WindowEC):
 		name, entity_id = component.name, entity.entity_id
 		self.__commands.put(lambda: self.__open_window(entity_id, name))
 
 	async def __on_window_removed(self, entity_id: int):
-		# REMOVED carries the id, not the entity: by the time this runs the entity is a husk
 		self.__commands.put(lambda: self.__close_window(entity_id))
 
 	async def __on_tab_current(self, entity: Entity, component: CurrentTabEC):
@@ -163,8 +148,6 @@ class UiSystem(System):
 			entity.remove_component(RenderDirtyEC)
 
 	def __sync_page(self, entity: Entity) -> None:
-		"""The only place a TabEC/TabViewEC pair becomes a PageView - trivial field
-		copying, nothing the Qt side has to interpret."""
 		tab = entity.get_component(TabEC)
 		view = entity.get_component(TabViewEC)
 		pages = dict(self.__pages.get())
@@ -179,15 +162,12 @@ class UiSystem(System):
 		self.__pages.set(pages)
 
 	def __sync_avatar(self, entity: Entity) -> None:
-		"""The only place an AvatarViewEC becomes an AvatarView."""
 		view = entity.get_component(AvatarViewEC)
 		self.__avatar.set(AvatarView(
 			bubble=view.bubble,
 			timer_progress=view.timer_progress,
 			menu=list(view.menu),
 		))
-
-	# --- called from the Qt thread, hands off to the asyncio thread ---
 
 	def post_event(self, event: str, *args: Any) -> None:
 		self.__loop.call_soon_threadsafe(self.env.event_bus.dispatch, event, *args)
@@ -215,8 +195,6 @@ class UiSystem(System):
 		self.__loop.call_soon_threadsafe(run)
 
 	def window_closed(self, entity_id: int) -> None:
-		"""The user closed the window, so the window entity is what goes away.
-		Teardown closes every window too, and that is not the user asking for anything."""
 		if self.__stopping.is_set():
 			return
 
@@ -226,14 +204,7 @@ class UiSystem(System):
 				self.env.data_storage.remove_entity(entity)
 		self.__loop.call_soon_threadsafe(run)
 
-	# --- Qt thread: its own loop, never reaches into env.data_storage or env.event_bus ---
-
 	def __run_qt(self):
-		# The QApplication is deliberately a local and is never stored: it belongs to this
-		# thread, and whatever still points at it when the thread ends is what destroys it.
-		# Held on the system, the main thread drops the last reference at interpreter
-		# shutdown and Qt tears the application down on the wrong thread - a clean exit
-		# followed by an access violation, which the supervisor reads as a crash to restart.
 		try:
 			app = QApplication([])
 			app.setQuitOnLastWindowClosed(False)
@@ -241,26 +212,18 @@ class UiSystem(System):
 			self.__avatar_widget = AvatarWidget(self.post_event, self.trigger_menu)
 			self.__avatar_widget.show()
 		except BaseException as ex:
-			# Nothing above reaches a caller, and a half-built interface would hang start()
-			# on __ready forever. Record it, release the wait, let start() raise it.
 			self.__failure = ex
 			self.__ready.set()
 			return
 
 		self.__ready.set()
-		# keep_running=False: when __qt_loop returns, the Qt loop stops and this thread ends.
 		QtAsyncio.run(self.__qt_loop(), keep_running=False, handle_sigint=False)
-
-		# Tear the application down here, on the thread that owns it. Left to the interpreter
-		# it is destroyed from the main thread at shutdown, which access-violates after a
-		# clean exit - and an exit code the supervisor reads as a crash worth restarting.
 		app.shutdown()
 
 	async def __qt_loop(self):
 		while not self.__stopping.is_set():
 			self.__drain_commands()
 			self.__apply_pages()
-			# after the tabs exist, or selecting one that was registered this tick misses
 			self.__apply_select()
 			self.__avatar_widget.apply(self.__avatar.get())
 			self.__avatar_widget.advance(POLL_S)
@@ -268,9 +231,6 @@ class UiSystem(System):
 		self.__teardown()
 
 	def __teardown(self) -> None:
-		"""On the Qt thread, where every widget was built. Returning from __qt_loop is what
-		stops the loop - quitting the QApplication here closes it under QtAsyncio's own
-		cleanup instead, which then raises on a loop it can no longer use."""
 		for window in self.__windows.values():
 			window.close()
 		self.__windows.clear()

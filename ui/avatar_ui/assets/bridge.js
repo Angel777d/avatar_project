@@ -2,10 +2,6 @@
 	let Real = null;
 
 	const wrap = (object) => {
-		// State is pushed, never fetched: a read is always answered from what was last
-		// pushed, and arguments only ever ask the app to change something. Waiting for the
-		// next `changed` instead would hang whenever the answer happened to be identical,
-		// because an unchanged snapshot is not pushed again.
 		const call = (name, args) => {
 			const resolve = typeof args[args.length - 1] === "function" ? args.pop() : null;
 			if (args.length) object.invoke(name, JSON.stringify(args));

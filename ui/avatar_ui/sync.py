@@ -5,9 +5,6 @@ _T = TypeVar("_T")
 
 
 class Guarded(Generic[_T]):
-	"""A value written on one thread and read on another. The lock only ever
-	guards the swap, never the value itself - readers get a fully-formed copy."""
-
 	def __init__(self, value: _T):
 		self.__lock = threading.Lock()
 		self.__value = value

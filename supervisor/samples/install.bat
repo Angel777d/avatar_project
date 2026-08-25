@@ -9,12 +9,6 @@ mkdir "%DIR%" 2>nul
 curl -fsSL -o "%DIR%\supervisor.exe" "%BASE%/supervisor.exe" || goto :fail
 curl -fsSL -o "%DIR%\config.json"    "%BASE%/config.json"    || goto :fail
 
-rem The catalogue every plugin is chosen from ships inside avatar_manager, and
-rem config.json already names what a fresh install runs with.
-
-rem Ask the shell for Desktop rather than assuming %USERPROFILE%\Desktop, which is wrong
-rem wherever OneDrive has redirected it. Written only when absent, so a user who moved or
-rem deleted it does not get it back on every update. Never fatal.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Join-Path ([Environment]::GetFolderPath('Desktop')) '%NAME%.lnk'; if (-not (Test-Path $p)) { $s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); $s.TargetPath = '%DIR%\supervisor.exe'; $s.WorkingDirectory = '%DIR%'; $s.Description = '%NAME%'; $s.Save() }" >nul 2>&1
 
 start "" "%DIR%\supervisor.exe"

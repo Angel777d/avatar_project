@@ -2,8 +2,6 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 
 class Bridge(QObject):
-	"""One of these per registered page. It only knows its own entity id."""
-
 	changed = Signal()
 
 	def __init__(self, entity_id: int, ui):
