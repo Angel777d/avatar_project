@@ -39,21 +39,20 @@ Two downloads, no admin, no python, no git. `curl.exe` ships with Windows 10 180
 
 **The installer is the updater.** Re-running it overwrites the executable and the config, both vendor-owned, and touches nothing else. The venv, the plugin list, the registries and the logs survive, and the next launch reconciles against the new config.
 
-**The cost is SmartScreen.** An unsigned download warns on first run and only code signing fixes it. A `certutil -hashfile` check in the `.bat` is worth adding, but it defends against a broken mirror rather than a compromised host.
+**The cost is SmartScreen.** An unsigned download warns on first run and only code signing fixes it.
 
 ## Provisioning is delegated
 
-The supervisor downloads no python, verifies no archive, creates no venv and resolves no dependency. **`uv` does all of it.** The only network code left is fetching `uv` itself — one zip, one checksum, `ZipFile.ExtractToDirectory` — and `uv` is confined to the workspace by `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR`.
+The supervisor downloads no python, creates no venv and resolves no dependency. **`uv` does all of it.** The only network code left is fetching `uv` itself — one zip, `ZipFile.ExtractToDirectory` — and `uv` is confined to the workspace by `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR`.
 
-Because `uv` owns an index of interpreter builds, the config names a version rather than a url:
+**`uv` comes from `releases/latest/download`, unpinned and unverified.** It is the vendor's own archive from the vendor's own release page — the same artifact, from the same url, that `winget install astral-sh.uv` fetches. A hash handed over by the host the file came from defends against a broken mirror, not a compromised one, and the packages installed with it are pinned regardless. Taking the current `uv` also means never carrying a stale one.
+
+Because `uv` owns an index of interpreter builds, the config names a python version rather than a url:
 
 ```json
 {
 	"title": "Example",
-	"uv": {
-		"url": "https://github.com/astral-sh/uv/releases/download/0.12.5/uv-x86_64-pc-windows-msvc.zip",
-		"sha256": "…"
-	},
+	"uv": { "url": "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip" },
 	"python": "3.13",
 	"index": "",
 	"packages": [
@@ -170,7 +169,7 @@ Layered, because the layers change at different rates, with a fingerprint each i
 
 | layer | fingerprint over | rebuilt when |
 | --- | --- | --- |
-| uv | url + checksum | the pin moves |
+| uv | url | the url changes |
 | interpreter | version string | the version changes |
 | venv | interpreter fingerprint | the interpreter changes |
 | requirements | index + config packages + plugin requirements + revision | any of them changes |

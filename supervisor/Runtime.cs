@@ -53,7 +53,7 @@ internal sealed class Runtime
 	{
 		problem = null;
 
-		var uvPrint = Requirements.Fingerprint(__plan.UvSource.Url, __plan.UvSource.Sha256);
+		var uvPrint = Requirements.Fingerprint(__plan.UvSource.Url);
 		if (!__state.Uv.Ready(uvPrint) || !File.Exists(__plan.UvExe))
 		{
 			__state.Begin(__state.Uv, uvPrint);

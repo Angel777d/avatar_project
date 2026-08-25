@@ -55,8 +55,6 @@ internal sealed class Plan
 
 		if (plan.UvSource.Url.Trim().Length == 0)
 			problem = "no uv url configured";
-		else if (plan.UvSource.Sha256.Trim().Length == 0)
-			problem = "no uv checksum configured, refusing to download it";
 		else if (plan.PythonVersion.Length == 0)
 			problem = "no python version configured";
 		else if (config.Processes.Count == 0)

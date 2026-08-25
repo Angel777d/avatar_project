@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "avatar_pomodoro"
-version = "0.1.1"
+version = "0.2.2"
 description = "Pomodoro timer plugin for the avatar project"
 
 authors = [

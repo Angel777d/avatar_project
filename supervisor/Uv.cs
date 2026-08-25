@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Security.Cryptography;
 
 namespace Supervisor;
 
@@ -34,8 +33,6 @@ internal sealed class Uv
 		var archive = Path.Combine(__plan.Workspace, "uv.zip");
 
 		if (!Download(__plan.UvSource.Url, archive, progress))
-			return false;
-		if (!Verify(archive, __plan.UvSource.Sha256, progress))
 			return false;
 
 		progress("Unpacking uv");
@@ -220,26 +217,5 @@ internal sealed class Uv
 			__log.Write("prov", $"download failed: {ex.Message}");
 			return false;
 		}
-	}
-
-	private bool Verify(string archive, string expected, Action<string> progress)
-	{
-		progress("Checking the download");
-		string actual;
-		using (var stream = File.OpenRead(archive))
-			actual = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
-
-		if (actual == expected.Trim().ToLowerInvariant())
-			return true;
-
-		__log.Write("prov", $"checksum mismatch: expected {expected}, got {actual}");
-		try
-		{
-			File.Delete(archive);
-		}
-		catch (IOException)
-		{
-		}
-		return false;
 	}
 }

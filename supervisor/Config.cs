@@ -5,7 +5,6 @@ namespace Supervisor;
 internal sealed class UvSource
 {
 	public string Url { get; set; } = "";
-	public string Sha256 { get; set; } = "";
 }
 
 internal sealed class ProcessEntry

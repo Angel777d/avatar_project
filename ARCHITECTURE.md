@@ -89,7 +89,7 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 
 - **The workspace is the directory the executable sits in**: `config.json`, the private `uv`, the interpreter, the `.venv`, `data\avatar.db`, `supervisor.log`. Uninstalling is deleting one folder.
 - `install.bat` at the repository root fetches `supervisor.exe` and `config.json` from `releases/latest/download`, leaves a desktop shortcut, and starts it. It is the only thing a user downloads, and re-running it is the update.
-- **Provisioning is delegated to `uv`.** The supervisor downloads no python and resolves no dependency; the only network code left fetches `uv` itself — one zip, one sha256, refused outright on a mismatch. `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` keep it inside the workspace.
+- **Provisioning is delegated to `uv`.** The supervisor downloads no python and resolves no dependency; the only network code left fetches `uv` itself, one zip from `releases/latest/download`, unpinned and taken on trust. `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` keep it inside the workspace.
 - Layered fingerprints in `state.json` decide what to rebuild — uv, interpreter, venv, requirements — so a plugin change never re-downloads an interpreter. A phase is recorded alongside each hash, because an interrupted install leaves a venv that looks finished.
 - A malformed config refuses to start rather than falling back to discovery.
 - The child is assigned to a **job object**, so the app dies with the launcher however the launcher dies; otherwise a force-kill orphans it and the next launch gives two avatars.
