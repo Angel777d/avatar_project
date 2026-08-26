@@ -27,6 +27,9 @@ Then `uv python find 3.13`, a desktop shortcut to the `pythonw.exe` beside it ru
 - `uv python find` returns a path without a patch version, so the shortcut survives 3.13.15
   becoming 3.13.16.
 - `UV_PYTHON_INSTALL_BIN=0`, or `uv` also writes a launcher into `~/.local/bin`.
+- The shortcut is rewritten every install, not only when missing, so an icon or a moved
+  interpreter reaches the shortcuts that already exist. `avatar.ico` is fetched beside the
+  script; failing to get one costs the icon and nothing else.
 
 ## config.json
 

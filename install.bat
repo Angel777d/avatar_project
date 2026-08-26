@@ -13,6 +13,7 @@ set "UV_CACHE_DIR=%DIR%\cache"
 mkdir "%DIR%" 2>nul
 curl -fsSL -o "%DIR%\config.json"   "%BASE%/config.json"   || goto :fail
 curl -fsSL -o "%DIR%\supervisor.py" "%BASE%/supervisor.py" || goto :fail
+curl -fsSL -o "%DIR%\avatar.ico"    "%BASE%/avatar.ico"    >nul 2>&1
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex" >nul 2>&1
 if not exist "%DIR%\uv\uv.exe" echo Could not install uv. & goto :fail
@@ -24,7 +25,7 @@ for /f "delims=" %%p in ('"%DIR%\uv\uv.exe" python find 3.13 2^>nul') do set "PY
 if defined PY set "PYW=%PY:python.exe=pythonw.exe%"
 if not defined PYW echo Could not find the interpreter. & goto :fail
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Join-Path ([Environment]::GetFolderPath('Desktop')) '%NAME%.lnk'; if (-not (Test-Path $p)) { $s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); $s.TargetPath = '%PYW%'; $s.Arguments = '\"%DIR%\supervisor.py\"'; $s.WorkingDirectory = '%DIR%'; $s.Description = '%NAME%'; $s.Save() }" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Join-Path ([Environment]::GetFolderPath('Desktop')) '%NAME%.lnk'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); $s.TargetPath = '%PYW%'; $s.Arguments = '\"%DIR%\supervisor.py\"'; $s.WorkingDirectory = '%DIR%'; $s.Description = '%NAME%'; if (Test-Path '%DIR%\avatar.ico') { $s.IconLocation = '%DIR%\avatar.ico,0' }; $s.Save()" >nul 2>&1
 
 start "" "%PYW%" "%DIR%\supervisor.py"
 exit /b 0
