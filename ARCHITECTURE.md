@@ -85,15 +85,26 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 
 ## Launcher and release
 
-`supervisor/` is a .NET 9 `WinExe` (`supervisor.exe`), the only thing a user runs. [design/supervisor.md](design/supervisor.md) has the reasoning.
+`supervisor.py` at the repository root is the launcher: one pure-stdlib python script, no build
+step and no binary. [design/supervisor.md](design/supervisor.md) has the detail.
 
-- **The workspace is the directory the executable sits in**: `config.json`, the private `uv`, the interpreter, the `.venv`, `data\avatar.db`, `supervisor.log`. Uninstalling is deleting one folder.
-- `install.bat` at the repository root fetches `supervisor.exe` and `config.json` from `releases/latest/download`, leaves a desktop shortcut, and starts it. It is the only thing a user downloads, and re-running it is the update.
-- **Provisioning is delegated to `uv`.** The supervisor downloads no python and resolves no dependency; the only network code left fetches `uv` itself, one zip from `releases/latest/download`, unpinned and taken on trust. `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` keep it inside the workspace.
-- Layered fingerprints in `state.json` decide what to rebuild — uv, interpreter, venv, requirements — so a plugin change never re-downloads an interpreter. A phase is recorded alongside each hash, because an interrupted install leaves a venv that looks finished.
-- A malformed config refuses to start rather than falling back to discovery.
-- The child is assigned to a **job object**, so the app dies with the launcher however the launcher dies; otherwise a force-kill orphans it and the next launch gives two avatars.
-- Restarts on failure (3 in a rolling window by default), exits when the app exits cleanly, one instance per workspace via a mutex, and logs the child's output.
-- App and supervisor talk through files in the workspace, one writer each: the app writes `plugins.json` and `request.json`, the supervisor answers in `reply.json`. That is what `avatar_manager` drives.
+- `install.bat` is the only download, and re-running it is the update. It fetches `config.json`
+  and `supervisor.py` from `releases/latest/download`, installs `uv` with the vendor's own
+  powershell script, has `uv` install python, leaves a desktop shortcut to the `pythonw.exe`
+  beside it running the script, and starts it.
+- **The workspace is the install directory**: `uv`, the interpreters, the cache, the venv,
+  `datavatar.db` and `supervisor.log`. Uninstalling is deleting one folder.
+- It does two things. **Packages** — the venv is brought to match `config.json` plus
+  `plugins.json`, and `state.json` remembers the last set, so a removal only ever touches what a
+  previous run installed on purpose rather than a dependency of something being kept.
+  **Process** — start the app and read its exit: `0` closed, `75` reconcile and start again,
+  anything else a crash with backoff until it has failed too often in a window.
+- The app asks over a loopback socket on the port in `config.json`, newline-delimited JSON. An
+  optional `action` of `restart` or `clean` is answered without installing, and the app exits
+  `75` to let the supervisor work against a venv nobody is running. Binding that port is also
+  how a second supervisor knows to stand down.
+- The app is assigned to a **job object**, so it dies with the supervisor however that happens.
 
-A checkout runs `avatar_core` directly out of an editable install; the README has the line. The GitHub workflows publish `supervisor.exe`, `config.json`, `install.bat` and a wheel per package on a `v*` tag.
+A checkout runs `avatar_core` directly out of an editable install; the README has the line. The
+release workflow publishes `supervisor.py`, `config.json`, `install.bat` and a wheel per package
+on a `v*` tag.

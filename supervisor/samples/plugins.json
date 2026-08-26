@@ -1,9 +1,0 @@
-{
-	"revision": 3,
-	"requirements": [
-		"avatar_kanban @ https://github.com/Angel777d/avatar_project/releases/download/v0.1.0/avatar_kanban-0.1.0-py3-none-any.whl#sha256=0000000000000000000000000000000000000000000000000000000000000000",
-		"avatar_calendar @ https://github.com/Angel777d/avatar_project/archive/refs/tags/v0.1.0.tar.gz",
-		"avatar_pomodoro==0.1.0",
-		"avatar_stats @ git+https://github.com/Angel777d/avatar_project@a1b2c3d"
-	]
-}

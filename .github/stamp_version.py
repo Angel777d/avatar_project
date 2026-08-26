@@ -11,7 +11,7 @@ PYPROJECTS = (
 )
 
 CARRY_URLS = (
-	"supervisor/samples/config.json",
+	"config.json",
 	"plugins/manager/src/avatar_manager/registry.json",
 )
 
