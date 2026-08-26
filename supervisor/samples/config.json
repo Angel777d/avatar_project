@@ -1,13 +1,6 @@
 {
-	"title": "Avatar",
-
-	"uv": {
-		"url": "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip"
-	},
-
 	"python": "3.13",
-	"index": "",
-
+	"port": 8731,
 	"packages": [
 		"angelovich.core==0.2.1",
 		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_api-0.2.2-py3-none-any.whl",
@@ -16,20 +9,10 @@
 		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_default-0.2.2-py3-none-any.whl",
 		"avatar_manager @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_manager-0.2.2-py3-none-any.whl"
 	],
-
-	"processes": [
-		{
-			"name": "app",
-			"module": "avatar_core",
-			"required": true,
-			"restart": "on-failure",
-			"maxRestarts": 3,
-			"windowSeconds": 60,
-			"backoffSeconds": 2,
-			"stopGraceSeconds": 5
-		}
-	],
-
-	"restartCode": 75,
-	"pollSeconds": 1
+	"app": {
+		"module": "avatar_core",
+		"restarts": 3,
+		"window": 60,
+		"backoff": 2
+	}
 }
