@@ -13,4 +13,4 @@ def main() -> int:
 	env = Env()
 	application = Application(env)
 	asyncio.run(application.run())
-	return 0
+	return env.exit_code

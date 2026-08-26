@@ -15,3 +15,4 @@ class Env(Environment):
 		self.migrations: MigrationRegistry = MigrationRegistry()
 		self.close_event: Optional[asyncio.Event] = None
 		self.workspace: Optional[Path] = None
+		self.exit_code: int = 0

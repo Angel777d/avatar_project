@@ -166,7 +166,7 @@ class ManagerSystem(System):
 	async def __on_refresh(self):
 		self.__reload(True)
 
-	async def __on_apply(self):
+	async def __on_apply(self, action: str = ""):
 		requirements = []
 		for entry in self.__catalogue:
 			if entry["name"] in self.__wanted:
@@ -179,7 +179,7 @@ class ManagerSystem(System):
 
 		self.__touched = False
 		self.__announce()
-		await self.env.event_bus.dispatch_async(events.REQUEST_PLUGINS_APPLY, requirements)
+		await self.env.event_bus.dispatch_async(events.REQUEST_PLUGINS_APPLY, requirements, action)
 
 	async def __on_registry_add(self, name: str, location: str):
 		name = name.strip()

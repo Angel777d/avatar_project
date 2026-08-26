@@ -1,8 +1,7 @@
+import asyncio
 import json
 import logging
 import os
-import sys
-from importlib import metadata
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -12,28 +11,25 @@ logger = logging.getLogger(__name__)
 
 WORKSPACE_VAR = "SUPERVISOR_WORKSPACE"
 
+CONFIG_FILE = "config.json"
 PLUGINS_FILE = "plugins.json"
-REQUEST_FILE = "request.json"
-REPLY_FILE = "reply.json"
+
+HOST = "127.0.0.1"
+TIMEOUT = 600
+RESTART_CODE = 75
+
+IDLE: Dict = {"busy": False, "step": "", "applied": [], "deferred": [],
+              "failed": [], "restart": False, "error": ""}
 
 
-def loaded_distributions() -> List[str]:
-	mapping = metadata.packages_distributions()
-	found = set()
-	for module in list(sys.modules):
-		for name in mapping.get(module.split(".")[0], ()):
-			found.add(name)
-	return sorted(found)
-
-
-def read_json(path: Path) -> Optional[dict]:
+def read_json(path: Path):
 	try:
 		return json.loads(path.read_text(encoding="utf-8"))
 	except (OSError, ValueError):
 		return None
 
 
-def write_json(path: Path, payload: dict) -> None:
+def write_json(path: Path, payload) -> None:
 	temp = path.with_suffix(path.suffix + ".tmp")
 	temp.write_text(json.dumps(payload, indent="\t"), encoding="utf-8")
 	os.replace(temp, path)
@@ -45,12 +41,9 @@ class SupervisorSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__workspace: Optional[Path] = None
-		self.__revision = 0
+		self.__port = 0
 		self.__requirements: List[str] = []
-		self.__waiting = 0
-		self.__stamp: Optional[float] = None
-		self.__status: Dict = {"busy": False, "step": "", "applied": [], "deferred": [],
-		                       "failed": [], "restart": False, "error": ""}
+		self.__status: Dict = dict(IDLE)
 
 		self.add_listener(events.REQUEST_PLUGINS_APPLY, self.__on_apply)
 
@@ -61,19 +54,15 @@ class SupervisorSystem(System):
 		if self.__workspace is None:
 			logger.info("no supervisor workspace, plugin changes are unavailable")
 		else:
-			logger.info("supervisor workspace at %s", self.__workspace)
-			self.__read()
+			self.__port = self.__read_port()
+			self.__requirements = self.__read_plugins()
+			logger.info("supervisor workspace at %s, port %d", self.__workspace, self.__port)
 
 		await self.__announce()
 
-	async def _update(self, delta_time: float):
-		if self.__workspace is None or self.__waiting == 0:
-			return
-		await self.__poll()
-
 	@property
 	def available(self) -> bool:
-		return self.__workspace is not None
+		return self.__workspace is not None and self.__port > 0
 
 	def __resolve(self) -> Optional[Path]:
 		named = os.environ.get(WORKSPACE_VAR, "").strip()
@@ -82,71 +71,105 @@ class SupervisorSystem(System):
 		path = Path(named)
 		return path if path.is_dir() else None
 
-	def __read(self) -> None:
-		payload = read_json(self.__workspace / PLUGINS_FILE) or {}
-		self.__revision = int(payload.get("revision", 0))
-		self.__requirements = [str(entry) for entry in payload.get("requirements", [])]
+	def __read_port(self) -> int:
+		payload = read_json(self.__workspace / CONFIG_FILE) or {}
+		try:
+			return int(payload.get("port", 0))
+		except (TypeError, ValueError):
+			return 0
 
-	async def __on_apply(self, requirements: List[str]):
-		if self.__workspace is None:
-			self.__status |= {"error": "no supervisor is running this app", "busy": False}
+	def __read_plugins(self) -> List[str]:
+		payload = read_json(self.__workspace / PLUGINS_FILE)
+		entries = payload if isinstance(payload, list) else []
+		return [str(entry) for entry in entries]
+
+	async def __on_apply(self, requirements: List[str], action: str = ""):
+		if not self.available:
+			self.__status = {**IDLE, "error": "no supervisor is running this app"}
 			await self.__announce()
 			return
 
 		wanted = [str(entry).strip() for entry in requirements if str(entry).strip()]
-		self.__revision += 1
-		self.__waiting = self.__revision
-
-		# The desired state reaches disk before anything is asked to act on it.
-		write_json(self.__workspace / PLUGINS_FILE,
-		           {"revision": self.__revision, "requirements": wanted})
-		write_json(self.__workspace / REQUEST_FILE,
-		           {"op": "reconcile", "revision": self.__revision, "loaded": loaded_distributions()})
-
+		write_json(self.__workspace / PLUGINS_FILE, wanted)
 		self.__requirements = wanted
-		self.__status = {"busy": True, "step": "Asking the supervisor", "applied": [],
-		                 "deferred": [], "failed": [], "restart": False, "error": ""}
-		logger.info("asked the supervisor for revision %d, %d requirement(s)", self.__revision, len(wanted))
+
+		self.__status = {**IDLE, "busy": True, "step": "Asking the supervisor"}
 		await self.__announce()
 
-	async def __poll(self) -> None:
-		path = self.__workspace / REPLY_FILE
-		try:
-			stamp = path.stat().st_mtime
-		except OSError:
-			return
-		if stamp == self.__stamp:
-			return
-		self.__stamp = stamp
+		logger.info("asked the supervisor for %d requirement(s)%s",
+		            len(wanted), f" and a {action}" if action else "")
+		reply = await self.__ask(action)
 
-		reply = read_json(path)
-		if reply is None or int(reply.get("revision", -1)) != self.__waiting:
+		if reply is None:
+			self.__status = {**IDLE, "error": "the supervisor did not answer"}
+			await self.__announce()
 			return
 
-		done = str(reply.get("state", "")) == "done"
+		if reply.get("op") == "error":
+			self.__status = {**IDLE, "error": str(reply.get("error", "refused"))}
+			await self.__announce()
+			return
+
+		installed = [str(name) for name in reply.get("installed", [])]
+		removed = [str(name) for name in reply.get("removed", [])]
+		failed = [str(name) for name in reply.get("failed", [])]
+		deferred = wanted if reply.get("action") else []
+
 		self.__status = {
-			"busy": not done,
-			"step": str(reply.get("step", "")),
-			"applied": list(reply.get("applied", [])),
-			"deferred": list(reply.get("deferred", [])),
-			"failed": list(reply.get("failed", [])),
-			"restart": bool(reply.get("restart", False)),
-			"error": str(reply.get("error", "")),
+			"busy": False,
+			"step": "",
+			"applied": installed,
+			"removed": removed,
+			"deferred": deferred,
+			"failed": failed,
+			"restart": bool(reply.get("action")),
+			"error": "",
 		}
-
-		if done:
-			self.__waiting = 0
-			self.__read()
-			logger.info("supervisor applied %d, deferred %d, failed %d",
-			            len(self.__status["applied"]), len(self.__status["deferred"]),
-			            len(self.__status["failed"]))
-
+		logger.info("supervisor installed %d, removed %d, failed %d",
+		            len(installed), len(removed), len(failed))
 		await self.__announce()
+
+		if reply.get("action"):
+			await self.__stand_aside()
+
+	async def __ask(self, action: str) -> Optional[dict]:
+		request: Dict = {"op": "reconcile"}
+		if action:
+			request["action"] = action
+
+		try:
+			reader, writer = await asyncio.open_connection(HOST, self.__port)
+		except OSError as ex:
+			logger.error("cannot reach the supervisor on %d: %s", self.__port, ex)
+			return None
+
+		try:
+			writer.write(json.dumps(request).encode("utf-8") + b"\n")
+			await writer.drain()
+			line = await asyncio.wait_for(reader.readline(), TIMEOUT)
+		except (asyncio.TimeoutError, ConnectionError, OSError) as ex:
+			logger.error("the supervisor stopped answering: %s", ex)
+			return None
+		finally:
+			writer.close()
+
+		if not line:
+			return None
+		try:
+			answer = json.loads(line)
+		except ValueError:
+			return None
+		return answer if isinstance(answer, dict) else None
+
+	async def __stand_aside(self) -> None:
+		"""The supervisor reconciles with nothing running, so this process gets out of the way."""
+		logger.info("closing so the supervisor can finish")
+		self.env.exit_code = RESTART_CODE
+		await self.env.event_bus.dispatch_async(events.REQUEST_APP_CLOSE)
 
 	async def __announce(self) -> None:
 		await self.env.event_bus.dispatch_async(events.ACTION_PLUGINS_CHANGED, {
-			"available": self.__workspace is not None,
-			"revision": self.__revision,
+			"available": self.available,
 			"requirements": list(self.__requirements),
 			**self.__status,
 		})
