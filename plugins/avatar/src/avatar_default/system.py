@@ -54,23 +54,41 @@ class AvatarSystem(System):
 		self.add_task(self.__idle())
 		self.add_task(self.__watch_timer())
 
+	async def stop(self):
+		await super().stop()
+		entity, self.__entity = self.__entity, None
+		self.__queue.clear()
+		self.__skip.set()
+		self.__pending.set()
+		if entity is not None:
+			self.env.data_storage.remove_entity(entity)
+
 	def __mark_dirty(self):
 		if not self.__entity.has_component(RenderDirtyEC):
 			self.__entity.add_component(RenderDirtyEC())
 
-	def __view(self) -> AvatarViewEC:
-		return self.__entity.get_component(AvatarViewEC)
+	def __view(self) -> Optional[AvatarViewEC]:
+		return self.__entity.get_component(AvatarViewEC) if self.__entity is not None else None
 
 	def __set_bubble(self, text: str):
-		self.__view().bubble = text
+		view = self.__view()
+		if view is None:
+			return
+		view.bubble = text
 		self.__mark_dirty()
 
 	def __set_timer_progress(self, value: float):
-		self.__view().timer_progress = value
+		view = self.__view()
+		if view is None:
+			return
+		view.timer_progress = value
 		self.__mark_dirty()
 
 	def __refresh_menu(self):
-		self.__view().menu = [
+		view = self.__view()
+		if view is None:
+			return
+		view.menu = [
 			(entity.entity_id, entity.get_component(MenuItemEC).name)
 			for entity in menu_items(self.env.data_storage)
 		]

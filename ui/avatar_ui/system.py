@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 POLL_S = 1 / 30
 
-WATCHED = (WindowEC, CurrentTabEC, TabEC)
+WATCHED = (WindowEC, CurrentTabEC, TabEC, AvatarViewEC)
 
 
 class UiSystem(System):
@@ -54,6 +54,7 @@ class UiSystem(System):
 		self.__pending_select: Optional[Tuple[str, str]] = None
 
 		self.add_listener(events.REQUEST_PAGE_SHOW, self.__on_show)
+		self.__subscribe()
 
 	async def start(self):
 		self.__loop = asyncio.get_running_loop()
@@ -62,7 +63,6 @@ class UiSystem(System):
 		await asyncio.get_running_loop().run_in_executor(None, self.__ready.wait)
 		if self.__failure is not None:
 			raise RuntimeError("the interface could not start") from self.__failure
-		self.__subscribe()
 		self.add_task(self.__poll_dirty())
 
 	async def stop(self):
@@ -88,6 +88,10 @@ class UiSystem(System):
 		tabs = storage.get_collection(TabEC)
 		tabs.add_listener(tabs.EVENT_REMOVED, self.__on_tab_removed, scope=self)
 
+		avatar = storage.get_collection(AvatarViewEC)
+		avatar.add_listener(avatar.EVENT_ADDED, self.__on_avatar_added, scope=self)
+		avatar.add_listener(avatar.EVENT_REMOVED, self.__on_avatar_removed, scope=self)
+
 	async def __on_window_added(self, entity: Entity, component: WindowEC):
 		name, entity_id = component.name, entity.entity_id
 		self.__commands.put(lambda: self.__open_window(entity_id, name))
@@ -110,6 +114,13 @@ class UiSystem(System):
 		self.__pages.set(pages)
 		window, title = view.window, view.title
 		self.__commands.put(lambda: self.__drop_tab(entity_id, window, title))
+
+	async def __on_avatar_added(self, entity: Entity, component: AvatarViewEC):
+		self.__commands.put(self.__show_avatar)
+
+	async def __on_avatar_removed(self, entity_id: int):
+		self.__avatar.set(None)
+		self.__commands.put(self.__hide_avatar)
 
 	async def __on_show(self, title: str, window: str = DEFAULT_WINDOW):
 		page = self.__tab(title, window)
@@ -210,7 +221,6 @@ class UiSystem(System):
 			app.setQuitOnLastWindowClosed(False)
 
 			self.__avatar_widget = AvatarWidget(self.post_event, self.trigger_menu)
-			self.__avatar_widget.show()
 		except BaseException as ex:
 			self.__failure = ex
 			self.__ready.set()
@@ -274,6 +284,15 @@ class UiSystem(System):
 			self.__pending_select = None
 		window.close()
 		window.deleteLater()
+
+	def __show_avatar(self) -> None:
+		if self.__avatar_widget is not None:
+			self.__avatar_widget.show()
+
+	def __hide_avatar(self) -> None:
+		if self.__avatar_widget is not None:
+			self.__avatar_widget.set_bubble("")
+			self.__avatar_widget.hide()
 
 	def __drop_tab(self, page_id: int, window_name: str, title: str) -> None:
 		self.__built.pop(page_id, None)
