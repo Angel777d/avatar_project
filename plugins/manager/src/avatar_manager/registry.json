@@ -6,8 +6,8 @@
 			"name": "avatar_kanban",
 			"title": "Kanban",
 			"summary": "A board of cards in columns, with deadlines and tags.",
-			"version": "0.3.1",
-			"requirement": "avatar_kanban @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_kanban-0.3.1-py3-none-any.whl",
+			"version": "0.3.2",
+			"requirement": "avatar_kanban @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.2/avatar_kanban-0.3.2-py3-none-any.whl",
 			"homepage": "https://github.com/Angel777d/avatar_project",
 			"restartNeeded": false
 		},
@@ -15,8 +15,8 @@
 			"name": "avatar_calendar",
 			"title": "Calendar",
 			"summary": "A month view over dated notes.",
-			"version": "0.3.1",
-			"requirement": "avatar_calendar @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_calendar-0.3.1-py3-none-any.whl",
+			"version": "0.3.2",
+			"requirement": "avatar_calendar @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.2/avatar_calendar-0.3.2-py3-none-any.whl",
 			"homepage": "https://github.com/Angel777d/avatar_project",
 			"restartNeeded": false
 		},
@@ -24,8 +24,8 @@
 			"name": "avatar_pomodoro",
 			"title": "Pomodoro",
 			"summary": "A work and rest timer that logs the time it tracks.",
-			"version": "0.3.1",
-			"requirement": "avatar_pomodoro @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_pomodoro-0.3.1-py3-none-any.whl",
+			"version": "0.3.2",
+			"requirement": "avatar_pomodoro @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.2/avatar_pomodoro-0.3.2-py3-none-any.whl",
 			"homepage": "https://github.com/Angel777d/avatar_project",
 			"restartNeeded": false
 		},
@@ -33,8 +33,8 @@
 			"name": "avatar_stats",
 			"title": "Statistics",
 			"summary": "A dashboard over the time log, in its own window.",
-			"version": "0.3.1",
-			"requirement": "avatar_stats @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_stats-0.3.1-py3-none-any.whl",
+			"version": "0.3.2",
+			"requirement": "avatar_stats @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.2/avatar_stats-0.3.2-py3-none-any.whl",
 			"homepage": "https://github.com/Angel777d/avatar_project",
 			"restartNeeded": false
 		}

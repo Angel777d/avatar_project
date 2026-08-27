@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "avatar.api"
-version = "0.3.1"
+version = "0.3.2"
 description = "Shared vocabulary of the avatar project: components and event names"
 
 authors = [
