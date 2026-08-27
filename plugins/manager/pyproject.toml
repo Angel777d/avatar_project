@@ -26,4 +26,4 @@ avatar_manager = 'avatar_manager'
 where = ["src"]
 
 [tool.setuptools.package-data]
-avatar_manager = ["*.html", "*.json"]
+avatar_manager = ["*.html"]

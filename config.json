@@ -1,6 +1,7 @@
 {
 	"python": "3.13",
 	"port": 8731,
+	"registry": "https://github.com/Angel777d/avatar_project/releases/latest/download/registry.json",
 	"packages": [
 		"angelovich.core==0.2.1",
 		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.2/avatar_api-0.3.2-py3-none-any.whl",

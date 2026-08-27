@@ -8,9 +8,9 @@ from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-BUILTIN = Path(__file__).resolve().parent / "registry.json"
 BUILTIN_NAME = "default"
 
+CONFIG_FILE = "config.json"
 REGISTRIES_FILE = "registries.json"
 CACHE_DIR = "registries"
 
@@ -53,9 +53,20 @@ def write_registries(workspace: Optional[Path], entries: List[dict]) -> None:
 	write_json(workspace / REGISTRIES_FILE, {"registries": entries})
 
 
+def default_registry(workspace: Optional[Path]) -> str:
+	if workspace is None:
+		return ""
+	payload = read_json(workspace / CONFIG_FILE) or {}
+	return str(payload.get("registry", "")).strip()
+
+
 def sources(workspace: Optional[Path]) -> List[dict]:
-	"""The built-in registry first, then whatever the user added, in the order they were added."""
-	return [{"name": BUILTIN_NAME, "path": str(BUILTIN), "builtin": True}] + read_registries(workspace)
+	"""The one the vendor names first, then whatever the user added, in the order they added it."""
+	entries = []
+	url = default_registry(workspace)
+	if url:
+		entries.append({"name": BUILTIN_NAME, "url": url, "builtin": True})
+	return entries + read_registries(workspace)
 
 
 def rank(entries: List[dict]) -> List[Tuple[int, dict]]:

@@ -105,6 +105,11 @@ step and no binary. [design/supervisor.md](design/supervisor.md) has the detail.
   how a second supervisor knows to stand down.
 - The app is assigned to a **job object**, so it dies with the supervisor however that happens.
 
+- `config.json` also names the **registry**, the catalogue `avatar_manager` offers plugins from.
+  It is a released asset rather than something inside the manager's wheel, fetched and cached on
+  the first run and refetched by the page's Refresh, so the catalogue can move without shipping
+  a new manager.
+
 A checkout runs `avatar_core` directly out of an editable install; the README has the line. The
-release workflow publishes `supervisor.py`, `config.json`, `install.bat` and a wheel per package
-on a `v*` tag.
+release workflow publishes `supervisor.py`, `config.json`, `install.bat`, `avatar.ico`,
+`registry.json` and a wheel per package on a `v*` tag.

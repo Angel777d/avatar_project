@@ -86,7 +86,7 @@ One element of a registry's `plugins` array — what is known about a plugin bef
 
 **Publish as a GitHub release wheel.** Of the four forms the supervisor accepts, that one carries a `#sha256=` fragment, so a plugin is verified exactly as the interpreter is; it installs without building, so no third-party `setup.py` runs on a user's machine; and it needs no git. An archive at a tag is the same thing without the integrity guarantee. `git+` exists for development and branch-tracking, which is the only thing the others cannot do — and a branch ref hashes the same tomorrow as today, so nothing reinstalls until the app increments `revision` to say an update is due. That is what makes "update this plugin" work for a moving ref without the supervisor understanding git.
 
-**The built-in catalogue is the one exception, and omits the fragment.** It ships inside `avatar_manager` and names wheels built by the same release, so their hashes do not exist when it is packaged. A registry hosted separately, published after the wheels it points at, has no such excuse.
+**The vendor's own catalogue is the one exception, and omits the fragment.** `registry.json` is published with the release whose wheels it names, so their hashes do not exist when it is written. A registry hosted separately, published after the wheels it points at, has no such excuse.
 
 ## What python actually allows
 

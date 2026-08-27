@@ -74,3 +74,4 @@ jobs:
             config.json
             install.bat
             avatar.ico
+            registry.json
