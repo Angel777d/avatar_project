@@ -21,6 +21,14 @@ logger = logging.getLogger(__name__)
 
 PLUGIN_GROUP = "avatar.plugins"
 TICK_TIME = 1.0
+SAVE_TIME = 300.0
+
+MANDATORY = frozenset({"avatar_ui"})
+
+
+def owned_by(component_type, name: str) -> bool:
+	module = getattr(component_type, "__module__", "")
+	return module == name or module.startswith(f"{name}.")
 
 
 def load_plugin(name: str) -> Optional[Plugin]:
@@ -71,7 +79,7 @@ class Application:
 			enabled_by_default,
 		)
 		self.__owned: Dict[str, List[System]] = {}
-		self.__reloading = ""
+		self.__busy = False
 
 		for plugin in self.plugins:
 			self.__adopt(plugin)
@@ -109,10 +117,18 @@ class Application:
 		await env.event_bus.dispatch_async(events.ACTION_STORAGE_RESTORED, restored)
 
 		last_time = time.monotonic()
+		last_save = last_time
 		while not close_event.is_set():
 			current_time = time.monotonic()
 			delta_time = current_time - last_time
 			last_time = current_time
+
+			if current_time - last_save >= SAVE_TIME and not self.__busy:
+				last_save = current_time
+				try:
+					logger.info("saved %d entities", await self.storage.save(env))
+				except Exception as ex:
+					logger.error("periodic save failed: %s", ex, exc_info=True)
 
 			for system in list(self.systems):
 				try:
@@ -140,37 +156,56 @@ class Application:
 
 	async def __on_reload(self, installed: List[str], removed: List[str]) -> None:
 		for name in removed:
-			await self.unload_plugin(name, keep=False)
+			await self.unload_plugin(name)
 		for name in installed:
 			await self.reload_plugin(name)
 
 	async def reload_plugin(self, name: str) -> bool:
-		"""Swap a plugin for whatever is on disk now, carrying its stored data across."""
-		kept = await self.unload_plugin(name, keep=True)
-		plugin = load_plugin(name)
-		if plugin is None:
-			logger.error("plugin %s is not installed", name)
+		"""Swap a plugin for whatever is on disk now. Its data goes through the database, which
+		is the only thing that survives its classes being replaced."""
+		if name in MANDATORY:
+			logger.error("%s is mandatory and is only replaced by restarting", name)
 			return False
 
-		self.plugins = [p for p in self.plugins if p.name != name] + [plugin]
-		owned = self.__adopt(plugin)
-		for system in owned:
-			try:
-				await system.start()
-			except Exception as ex:
-				logger.error("%s start failed: %s", system, ex, exc_info=True)
+		self.__busy = True
+		try:
+			if name in self.__owned:
+				await self.storage.save(self.env)
+			await self.unload_plugin(name, saved=True)
 
-		self.__reattach(kept)
-		await self.env.event_bus.dispatch_async(events.ACTION_STORAGE_RESTORED, len(kept))
-		logger.info("plugin %s is loaded, %d entities carried over", name, len(kept))
+			plugin = load_plugin(name)
+			if plugin is None:
+				logger.error("plugin %s is not installed", name)
+				return False
+
+			self.plugins = [p for p in self.plugins if p.name != name] + [plugin]
+			for system in self.__adopt(plugin):
+				try:
+					await system.start()
+				except Exception as ex:
+					logger.error("%s start failed: %s", system, ex, exc_info=True)
+
+			restored = await self.storage.load(self.env)
+		finally:
+			self.__busy = False
+
+		await self.env.event_bus.dispatch_async(events.ACTION_STORAGE_RESTORED, restored)
+		logger.info("plugin %s is loaded", name)
 		return True
 
-	async def unload_plugin(self, name: str, keep: bool = True) -> List[Tuple[Any, List[dict]]]:
-		"""Its systems stop, its components come off, its modules go. Nothing of it is left
-		holding a class that is about to be replaced."""
-		kept = self.__detach(name) if keep else []
-		if not keep:
-			self.__detach(name)
+	async def unload_plugin(self, name: str, saved: bool = False) -> bool:
+		"""Its systems take their entities with them, its types are forgotten and its modules go,
+		so nothing is left holding a class that is about to be replaced."""
+		if name in MANDATORY:
+			logger.error("%s is mandatory and is not unloaded", name)
+			return False
+
+		if not saved:
+			self.__busy = True
+			try:
+				await self.storage.save(self.env)
+			finally:
+				self.__busy = False
 
 		for system in self.__owned.pop(name, []):
 			try:
@@ -185,49 +220,11 @@ class Application:
 				self.systems.remove(system)
 
 		self.plugins = [p for p in self.plugins if p.name != name]
-		self.__forget(name)
-		drop_modules(name)
-		return kept
-
-	def __owns(self, component_type) -> bool:
-		module = getattr(component_type, "__module__", "")
-		return module == self.__reloading or module.startswith(f"{self.__reloading}.")
-
-	def __detach(self, name: str) -> List[Tuple[Any, List[dict]]]:
-		"""Components of a plugin's own types come off the entities that carry them, encoded by
-		their stable name. The entities stay, so what other plugins put on them is untouched."""
-		self.__reloading = name
-		mine = [t for t in self.env.registry.types if self.__owns(t)]
-		kept: List[Tuple[Any, List[dict]]] = []
-
-		for component_type in mine:
-			for entity in list(self.env.data_storage.get_collection(component_type)):
-				payload = self.env.registry.encode(entity.get_component(component_type))
-				if payload is None:
-					continue
-				for known, payloads in kept:
-					if known is entity:
-						payloads.append(payload)
-						break
-				else:
-					kept.append((entity, [payload]))
-
-		for component_type in mine:
-			for entity in list(self.env.data_storage.get_collection(component_type)):
-				entity.remove_component(component_type)
-		return kept
-
-	def __forget(self, name: str) -> None:
-		self.__reloading = name
-		for component_type in [t for t in self.env.registry.types if self.__owns(t)]:
+		for component_type in [t for t in self.env.registry.types if owned_by(t, name)]:
 			self.env.registry.forget(component_type)
-
-	def __reattach(self, kept: List[Tuple[Any, List[dict]]]) -> None:
-		for entity, payloads in kept:
-			for payload in payloads:
-				component = self.env.registry.decode(payload)
-				if component is not None and not entity.has_component(type(component)):
-					entity.add_component(component)
+		drop_modules(name)
+		logger.info("plugin %s is unloaded", name)
+		return True
 
 	def close(self) -> None:
 		for system in self.systems:

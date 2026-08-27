@@ -86,6 +86,9 @@ class StatsSystem(System):
 			if entity is not None:
 				self.env.data_storage.remove_entity(entity)
 		self.__entity = self.__menu = None
+		self.env.data_storage.clear_collection(LogEntryEC)
+		self.env.data_storage.clear_collection(LogEventEC)
+		self.env.data_storage.clear_collection(StopwatchEC)
 
 	async def _update(self, delta_time: float):
 		if self.__running() is not None:

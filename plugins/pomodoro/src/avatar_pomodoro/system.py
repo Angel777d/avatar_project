@@ -90,6 +90,9 @@ class PomodoroSystem(System):
 			if entity is not None:
 				self.env.data_storage.remove_entity(entity)
 		self.__entity = self.__menu = None
+		self.env.data_storage.clear_collection(PomodoroSettingsEC)
+		self.env.data_storage.clear_collection(PomodoroChoiceEC)
+		self.env.data_storage.clear_collection(PomodoroLogEC)
 
 	async def _update(self, delta_time: float):
 		if self.__timer() is not None:

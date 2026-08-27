@@ -79,6 +79,8 @@ class KanbanSystem(System):
 			if entity is not None:
 				self.env.data_storage.remove_entity(entity)
 		self.__entity = self.__menu = None
+		self.env.data_storage.clear_collection(KanbanColumnEC)
+		self.env.data_storage.clear_collection(KanbanTaskEC)
 
 	def __register(self):
 		self.__entity = self.env.data_storage.create_entity()

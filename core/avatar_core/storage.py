@@ -62,7 +62,10 @@ class Storage:
 				if component is not None:
 					components.setdefault(static_id, []).append(component)
 
+		live = env.data_storage.get_collection(StaticIdEC)
 		for static_id, parts in components.items():
+			if live.find(StaticIdEC.make_hash(static_id)) is not None:
+				continue
 			entity = env.data_storage.create_entity()
 			entity.add_component(StaticIdEC(static_id))
 			for component in parts:
@@ -176,10 +179,12 @@ class Storage:
 			if removed:
 				marks = ",".join("?" * len(removed))
 				ids = sorted(removed)
-				for table in existing:
-					connection.execute(
-						f'delete from "{table}" where static_id in ({marks})', ids
-					)
+				for name in names:
+					table = table_of(name)
+					if table in existing:
+						connection.execute(
+							f'delete from "{table}" where static_id in ({marks})', ids
+						)
 
 	def __versions(self) -> dict:
 		self.__connection.execute(

@@ -66,6 +66,7 @@ class CalendarSystem(System):
 			if entity is not None:
 				self.env.data_storage.remove_entity(entity)
 		self.__entity = self.__menu = None
+		self.env.data_storage.clear_collection(CalendarNoteEC)
 
 	def __register(self):
 		entity = self.env.data_storage.create_entity()
