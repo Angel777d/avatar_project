@@ -31,6 +31,7 @@ class ManagerSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__entity: Optional[Entity] = None
+		self.__menu: Optional[Entity] = None
 		self.__catalogue: List[dict] = []
 		self.__sources: List[dict] = []
 		self.__installed: List[str] = []
@@ -50,7 +51,7 @@ class ManagerSystem(System):
 		self.add_listener(events.ACTION_PLUGINS_CHANGED, self.__on_plugins_changed)
 
 	async def start(self):
-		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
+		self.__menu = add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
 
 		self.__register()
 
@@ -58,6 +59,10 @@ class ManagerSystem(System):
 
 	async def stop(self):
 		await super().stop()
+		for entity in (self.__entity, self.__menu):
+			if entity is not None:
+				self.env.data_storage.remove_entity(entity)
+		self.__entity = self.__menu = None
 
 	def __register(self):
 		self.__entity = self.env.data_storage.create_entity()

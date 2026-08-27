@@ -18,6 +18,11 @@ HOST = "127.0.0.1"
 TIMEOUT = 600
 RESTART_CODE = 75
 
+def module_of(distribution: str) -> str:
+	"""uv answers in distribution names; a plugin is discovered under its import name."""
+	return distribution.strip().lower().replace("-", "_")
+
+
 IDLE: Dict = {"busy": False, "step": "", "applied": [], "deferred": [],
               "failed": [], "restart": False, "error": ""}
 
@@ -131,6 +136,12 @@ class SupervisorSystem(System):
 		logger.info("supervisor installed %d, removed %d, failed %d",
 		            len(installed), len(removed), len(failed))
 		await self.__announce()
+
+		if installed or removed:
+			await self.env.event_bus.dispatch_async(
+				events.REQUEST_PLUGINS_RELOAD,
+				[module_of(name) for name in installed],
+				[module_of(name) for name in removed])
 
 		if reply.get("action"):
 			await self.__stand_aside()

@@ -55,6 +55,7 @@ class StatsSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__entity: Optional[Entity] = None
+		self.__menu: Optional[Entity] = None
 		self.__days: int = DEFAULT_RANGE
 		self.__since: str = ""
 		self.__until: str = ""
@@ -63,7 +64,7 @@ class StatsSystem(System):
 		self.env.registry.register(LogEntryEC, "log_entry")
 		self.env.registry.register(LogEventEC, "log_event")
 
-		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
+		self.__menu = add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
 
 		self.add_listener(EVENT_OPEN, self.__on_open)
 		self.add_listener(EVENT_START, self.__on_start)
@@ -81,6 +82,10 @@ class StatsSystem(System):
 
 	async def stop(self):
 		await super().stop()
+		for entity in (self.__entity, self.__menu):
+			if entity is not None:
+				self.env.data_storage.remove_entity(entity)
+		self.__entity = self.__menu = None
 
 	async def _update(self, delta_time: float):
 		if self.__running() is not None:

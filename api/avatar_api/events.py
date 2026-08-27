@@ -5,6 +5,7 @@ REQUEST_TIMER_START = "request.timer.start"
 REQUEST_TIMER_CANCEL = "request.timer.cancel"
 REQUEST_LOG_TIME = "request.log.time"
 REQUEST_PLUGINS_APPLY = "request.plugins.apply"
+REQUEST_PLUGINS_RELOAD = "request.plugins.reload"
 
 ACTION_LOG_DATA = "action.log.data"
 ACTION_LOG_EVENT = "action.log.event"

@@ -41,12 +41,13 @@ class CalendarSystem(System):
 	def __init__(self, env: Env):
 		super().__init__(env)
 		self.__entity: Optional[Entity] = None
+		self.__menu: Optional[Entity] = None
 		self.__focus: date = date.today()
 
 	async def start(self):
 		self.env.registry.register(CalendarNoteEC, "calendar_note")
 
-		add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
+		self.__menu = add_menu_item(self.env.data_storage, MENU_ITEM, EVENT_OPEN)
 
 		self.add_listener(EVENT_OPEN, self.__on_open)
 		self.add_listener(EVENT_ADD, self.__on_add)
@@ -61,6 +62,10 @@ class CalendarSystem(System):
 
 	async def stop(self):
 		await super().stop()
+		for entity in (self.__entity, self.__menu):
+			if entity is not None:
+				self.env.data_storage.remove_entity(entity)
+		self.__entity = self.__menu = None
 
 	def __register(self):
 		entity = self.env.data_storage.create_entity()

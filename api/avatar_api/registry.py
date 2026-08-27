@@ -91,6 +91,14 @@ class TypeRegistry:
 		self.__by_type[component_type] = name
 		self.__fields[component_type] = tuple(fields) if fields is not None else None
 
+	def forget(self, component_type: Type[EntityComponent]) -> Optional[str]:
+		name = self.__by_type.pop(component_type, None)
+		if name is None:
+			return None
+		self.__by_name.pop(name, None)
+		self.__fields.pop(component_type, None)
+		return name
+
 	def register_all(self, component_types: Iterable[Type[EntityComponent]]) -> None:
 		for component_type in component_types:
 			self.register(component_type)
