@@ -48,7 +48,10 @@ class AvatarSystem(System):
 		self.add_listener(EVENT_CLICKED, self.__on_clicked)
 		self.add_listener(EVENT_MOVED, self.__on_moved)
 		self.add_listener(events.ACTION_STORAGE_RESTORED, self.__on_restored)
-		self.add_listener(events.ACTION_PLUGINS_CHANGED, self.__on_plugins_changed)
+
+		menu = self.env.data_storage.get_collection(MenuItemEC)
+		menu.add_listener(menu.EVENT_ADDED, self.__on_menu_added, scope=self)
+		menu.add_listener(menu.EVENT_REMOVED, self.__on_menu_removed, scope=self)
 
 		self.add_task(self.__speak())
 		self.add_task(self.__idle())
@@ -56,6 +59,7 @@ class AvatarSystem(System):
 
 	async def stop(self):
 		await super().stop()
+		self.env.data_storage.get_collection(MenuItemEC).remove_all_listeners(self)
 		entity, self.__entity = self.__entity, None
 		self.__queue.clear()
 		self.__skip.set()
@@ -97,7 +101,10 @@ class AvatarSystem(System):
 	async def __on_restored(self, restored: int):
 		self.__refresh_menu()
 
-	async def __on_plugins_changed(self, state: dict):
+	async def __on_menu_added(self, entity: Entity, component: MenuItemEC):
+		self.__refresh_menu()
+
+	async def __on_menu_removed(self, entity_id: int):
 		self.__refresh_menu()
 
 	async def __on_notification(self, notification: NotificationEC):
