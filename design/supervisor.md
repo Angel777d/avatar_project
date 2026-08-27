@@ -41,11 +41,13 @@ Read by both the supervisor and the app.
 	"port": 8731,
 	"packages": [
 		"angelovich.core==0.2.1",
-		"avatar.api @ https://github.com/…/avatar_api-0.2.2-py3-none-any.whl",
-		"avatar.core @ https://github.com/…/avatar_core-0.2.2-py3-none-any.whl",
-		"avatar.ui @ https://github.com/…/avatar_ui-0.2.2-py3-none-any.whl",
-		"avatar_default @ https://github.com/…/avatar_default-0.2.2-py3-none-any.whl",
-		"avatar_manager @ https://github.com/…/avatar_manager-0.2.2-py3-none-any.whl"
+		"avatar.api @ https://github.com/…/avatar_api-0.3.1-py3-none-any.whl",
+		"avatar.core @ https://github.com/…/avatar_core-0.3.1-py3-none-any.whl",
+		"avatar.ui @ https://github.com/…/avatar_ui-0.3.1-py3-none-any.whl"
+	],
+	"plugins": [
+		"avatar_default @ https://github.com/…/avatar_default-0.3.1-py3-none-any.whl",
+		"avatar_manager @ https://github.com/…/avatar_manager-0.3.1-py3-none-any.whl"
 	],
 	"app": { "module": "avatar_core", "restarts": 3, "window": 60, "backoff": 2 }
 }
@@ -53,10 +55,13 @@ Read by both the supervisor and the app.
 
 ## Packages
 
-Desired set is `config.packages` plus every entry of `plugins.json`.
+Desired set is `config.packages` plus the plugins.
 
-- `plugins.json` may ship with the install; absent means an empty list. The app writes it, the
-  supervisor reads it.
+- **`packages` is mandatory** — api, core, ui — and is never removed.
+- **`plugins` in `config.json` is the default set**, used until a `plugins.json` exists on disk.
+  Nothing ships one: the app writes it the first time a plugin is chosen, and from then on it is
+  the answer and the defaults are not consulted again. Both the supervisor and the app read it
+  the same way, so the manager shows the defaults as installed before anything is chosen.
 - Validate every `plugins.json` entry before use: `name==version`, or an `https://github.com/…`
   url. No newline, no leading dash. Passed to uv as arguments, never through a requirements file.
 - `state.json` holds the desired set from the last successful reconcile. Equal means no work.

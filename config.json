@@ -3,11 +3,13 @@
 	"port": 8731,
 	"packages": [
 		"angelovich.core==0.2.1",
-		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_api-0.2.2-py3-none-any.whl",
-		"avatar.core @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_core-0.2.2-py3-none-any.whl",
-		"avatar.ui @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_ui-0.2.2-py3-none-any.whl",
-		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_default-0.2.2-py3-none-any.whl",
-		"avatar_manager @ https://github.com/Angel777d/avatar_project/releases/download/v0.2.2/avatar_manager-0.2.2-py3-none-any.whl"
+		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_api-0.3.1-py3-none-any.whl",
+		"avatar.core @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_core-0.3.1-py3-none-any.whl",
+		"avatar.ui @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_ui-0.3.1-py3-none-any.whl"
+	],
+	"plugins": [
+		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_default-0.3.1-py3-none-any.whl",
+		"avatar_manager @ https://github.com/Angel777d/avatar_project/releases/download/v0.3.1/avatar_manager-0.3.1-py3-none-any.whl"
 	],
 	"app": {
 		"module": "avatar_core",

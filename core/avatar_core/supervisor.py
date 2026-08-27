@@ -71,17 +71,20 @@ class SupervisorSystem(System):
 		path = Path(named)
 		return path if path.is_dir() else None
 
+	def __config(self) -> dict:
+		return read_json(self.__workspace / CONFIG_FILE) or {}
+
 	def __read_port(self) -> int:
-		payload = read_json(self.__workspace / CONFIG_FILE) or {}
 		try:
-			return int(payload.get("port", 0))
+			return int(self.__config().get("port", 0))
 		except (TypeError, ValueError):
 			return 0
 
 	def __read_plugins(self) -> List[str]:
 		payload = read_json(self.__workspace / PLUGINS_FILE)
-		entries = payload if isinstance(payload, list) else []
-		return [str(entry) for entry in entries]
+		if isinstance(payload, list):
+			return [str(entry) for entry in payload]
+		return [str(entry) for entry in self.__config().get("plugins", [])]
 
 	async def __on_apply(self, requirements: List[str], action: str = ""):
 		if not self.available:

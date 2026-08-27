@@ -85,6 +85,7 @@ class Config:
 		self.python: str = str(payload.get("python", "3.13"))
 		self.port: int = int(payload.get("port", 0))
 		self.packages: List[str] = [str(p) for p in payload.get("packages", [])]
+		self.plugins: List[str] = [str(p) for p in payload.get("plugins", [])]
 		self.module: str = str(app.get("module", "avatar_core"))
 		self.restarts: int = int(app.get("restarts", 3))
 		self.window: float = float(app.get("window", 60))
@@ -136,9 +137,12 @@ class Packages:
 
 	def desired(self) -> List[str]:
 		wanted = list(self.__config.packages)
+
 		payload = read_json(PLUGINS)
-		entries = payload if isinstance(payload, list) else (payload or {}).get("packages", [])
-		for entry in entries or []:
+		if not isinstance(payload, list):
+			return wanted + list(self.__config.plugins)
+
+		for entry in payload:
 			requirement = str(entry).strip()
 			problem = validate(requirement)
 			if problem:
