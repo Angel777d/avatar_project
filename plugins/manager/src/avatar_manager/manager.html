@@ -159,7 +159,7 @@ function renderPlugins(state) {
   }
 
   for (const plugin of state.plugins) {
-    const pending = plugin.installed !== plugin.wanted;
+    const pending = plugin.installed !== plugin.wanted || (plugin.update && plugin.wanted);
     const row = document.createElement("div");
     row.className = "card plugin" + (pending ? " pending" : "");
 
@@ -168,7 +168,10 @@ function renderPlugins(state) {
     if (plugin.registry) meta.push(`<span class="tag">${escape(plugin.registry)}</span>`);
     if (plugin.restartNeeded) meta.push('<span class="tag warn">restart to change</span>');
     if (plugin.orphan) meta.push('<span class="tag warn">no registry</span>');
-    if (pending) meta.push(`<span class="tag">${plugin.wanted ? "will install" : "will remove"}</span>`);
+    if (plugin.update) meta.push('<span class="tag warn">update available</span>');
+    if (plugin.installed !== plugin.wanted)
+      meta.push(`<span class="tag">${plugin.wanted ? "will install" : "will remove"}</span>`);
+    else if (pending) meta.push('<span class="tag">will update</span>');
 
     row.innerHTML =
       `<input type="checkbox" data-name="${escape(plugin.name)}" ${plugin.wanted ? "checked" : ""}>` +

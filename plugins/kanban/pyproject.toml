@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "avatar_kanban"
-version = "0.3.2"
+version = "0.4.1"
 description = "Kanban board plugin for the avatar project"
 
 authors = [

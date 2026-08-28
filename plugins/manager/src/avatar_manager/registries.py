@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import os
 import urllib.error
 import urllib.request
@@ -15,6 +16,21 @@ REGISTRIES_FILE = "registries.json"
 CACHE_DIR = "registries"
 
 TIMEOUT = 15
+
+
+DIRECT = re.compile(r"^(?P<name>[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?)\s+@\s+\S+$")
+
+
+def name_of(requirement: str) -> str:
+	"""What a requirement installs, however it is written."""
+	text = str(requirement).strip()
+	direct = DIRECT.match(text)
+	if direct:
+		text = direct.group("name")
+	else:
+		for mark in ("==", ">=", "<=", "~=", ">", "<", "!", "["):
+			text = text.split(mark)[0]
+	return text.strip().lower().replace("_", "-").replace(".", "-")
 
 
 def read_json(path: Path) -> Optional[dict]:

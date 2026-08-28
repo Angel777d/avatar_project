@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "avatar.core"
-version = "0.3.2"
+version = "0.4.1"
 description = "Core of the avatar project: main loop, systems, plugins, storage"
 
 authors = [

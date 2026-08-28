@@ -75,18 +75,20 @@ class ManagerSystem(System):
 			self.__entity.add_component(RenderDirtyEC())
 
 	def snapshot(self) -> dict:
-		installed = set(self.__installed)
+		installed = self.__by_name()
 		plugins = []
 		for entry in self.__catalogue:
+			holding = installed.get(registries.name_of(entry["name"]))
 			plugins.append({
 				**entry,
-				"installed": entry["requirement"] in installed,
+				"installed": holding is not None,
+				"update": holding is not None and holding != entry["requirement"],
 				"wanted": entry["name"] in self.__wanted,
 			})
 
-		known = {entry["requirement"] for entry in self.__catalogue}
+		known = {registries.name_of(entry["name"]) for entry in self.__catalogue}
 		for requirement in self.__installed:
-			if requirement in known:
+			if registries.name_of(requirement) in known:
 				continue
 			plugins.append({
 				"name": requirement,
@@ -133,11 +135,16 @@ class ManagerSystem(System):
 			self.__reset_wanted()
 		self.__announce()
 
+	def __by_name(self) -> Dict[str, str]:
+		return {registries.name_of(requirement): requirement for requirement in self.__installed}
+
 	def __reset_wanted(self) -> None:
-		installed = set(self.__installed)
-		self.__wanted = {entry["name"] for entry in self.__catalogue if entry["requirement"] in installed}
-		known = {entry["requirement"] for entry in self.__catalogue}
-		self.__wanted |= {requirement for requirement in self.__installed if requirement not in known}
+		installed = self.__by_name()
+		self.__wanted = {entry["name"] for entry in self.__catalogue
+		                 if registries.name_of(entry["name"]) in installed}
+		known = {registries.name_of(entry["name"]) for entry in self.__catalogue}
+		self.__wanted |= {requirement for requirement in self.__installed
+		                  if registries.name_of(requirement) not in known}
 		self.__touched = False
 
 	def __announce(self) -> None:
@@ -177,9 +184,9 @@ class ManagerSystem(System):
 			if entry["name"] in self.__wanted:
 				requirements.append(entry["requirement"])
 
-		known = {entry["name"] for entry in self.__catalogue}
+		known = {registries.name_of(entry["name"]) for entry in self.__catalogue}
 		for requirement in self.__installed:
-			if requirement not in known and requirement in self.__wanted:
+			if registries.name_of(requirement) not in known and requirement in self.__wanted:
 				requirements.append(requirement)
 
 		self.__touched = False

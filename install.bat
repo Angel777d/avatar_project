@@ -27,6 +27,17 @@ if not defined PYW echo Could not find the interpreter. & goto :fail
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Join-Path ([Environment]::GetFolderPath('Desktop')) '%NAME%.lnk'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); $s.TargetPath = '%PYW%'; $s.Arguments = '\"%DIR%\supervisor.py\"'; $s.WorkingDirectory = '%DIR%'; $s.Description = '%NAME%'; if (Test-Path '%DIR%\avatar.ico') { $s.IconLocation = '%DIR%\avatar.ico,0' }; $s.Save()" >nul 2>&1
 
+"%PYW%" "%DIR%\supervisor.py" --check
+if errorlevel 3 (
+    echo Avatar is already running. The update applies the next time it starts.
+    exit /b 0
+)
+if errorlevel 1 (
+    echo Avatar cannot start. See "%DIR%\supervisor.log".
+    pause
+    exit /b 1
+)
+
 start "" "%PYW%" "%DIR%\supervisor.py"
 exit /b 0
 

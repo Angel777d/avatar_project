@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 from logging.handlers import RotatingFileHandler
@@ -25,6 +26,7 @@ VENV = WORKSPACE / ".venv"
 VENV_PYTHON = VENV / "Scripts" / "pythonw.exe"
 
 RESTART_CODE = 75
+BUSY_CODE = 3
 HOST = "127.0.0.1"
 
 NAME = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$")
@@ -190,11 +192,11 @@ class Packages:
 
 		code, output = run_uv("pip", "install", "--python", str(VENV_PYTHON), *wanted)
 		if code != 0:
-			result["failed"].extend(n for n in self.__added(known, wanted) if n not in result["failed"])
+			result["failed"].extend(n for n in self.__changed(known, wanted) if n not in result["failed"])
 			logger.error("install failed, keeping the recorded set")
 			return result
 
-		result["installed"] = self.__added(known, wanted)
+		result["installed"] = self.__changed(known, wanted)
 		if not result["failed"]:
 			self.record(wanted)
 		return result
@@ -206,9 +208,11 @@ class Packages:
 		return sorted({requirement_name(r) for r in known} - names)
 
 	@staticmethod
-	def __added(known: Sequence[str], wanted: Sequence[str]) -> List[str]:
-		names = {requirement_name(r) for r in known}
-		return sorted({requirement_name(r) for r in wanted} - names)
+	def __changed(known: Sequence[str], wanted: Sequence[str]) -> List[str]:
+		"""New, or the same package asked for differently - a version move is a change."""
+		before = {requirement_name(r): r for r in known}
+		return sorted({requirement_name(r) for r in wanted
+		               if before.get(requirement_name(r)) != r})
 
 
 class Job:
@@ -285,7 +289,12 @@ class Supervisor:
 		self.__closing = False
 
 	async def run(self) -> int:
-		server = await asyncio.start_server(self.__serve, HOST, self.__config.port)
+		try:
+			server = await asyncio.start_server(self.__serve, HOST, self.__config.port)
+		except OSError as ex:
+			logger.error("cannot listen on %d, another supervisor already owns this workspace: %s",
+			             self.__config.port, ex)
+			return BUSY_CODE
 		logger.info("listening on %s:%d", HOST, self.__config.port)
 
 		try:
@@ -399,6 +408,17 @@ class Supervisor:
 			process.terminate()
 
 
+def taken(port: int) -> bool:
+	probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	try:
+		probe.bind((HOST, port))
+		return False
+	except OSError:
+		return True
+	finally:
+		probe.close()
+
+
 def main() -> int:
 	setup_logging()
 
@@ -417,17 +437,19 @@ def main() -> int:
 		logger.error("no uv at %s, run the installer again", UV)
 		return 2
 
+	if "--check" in sys.argv:
+		return BUSY_CODE if taken(config.port) else 0
+
 	logger.info("supervisor start in %s", WORKSPACE)
 	supervisor = Supervisor(config)
 	try:
 		return asyncio.run(supervisor.run())
-	except OSError as ex:
-		logger.error("cannot listen on %d, another supervisor owns this workspace: %s",
-		             config.port, ex)
-		return 0
 	except KeyboardInterrupt:
 		supervisor.stop()
 		return 0
+	except Exception as ex:
+		logger.error("supervisor failed: %s", ex, exc_info=True)
+		return 2
 
 
 if __name__ == "__main__":
