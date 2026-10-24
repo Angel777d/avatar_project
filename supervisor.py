@@ -32,6 +32,9 @@ HOST = "127.0.0.1"
 NAME = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$")
 PINNED = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?==[A-Za-z0-9][A-Za-z0-9.*+!_-]*$")
 DIRECT = re.compile(r"^(?P<name>[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?)\s+@\s+(?P<url>\S+)$")
+RELEASE = re.compile(
+	r"^(?P<repo>https://github\.com/[^/]+/[^/]+)/releases/download/v(?P<version>[^/]+)/"
+	r"(?P<wheel>[A-Za-z0-9_.]+)-[^-/]+-(?P<tail>py3-none-any\.whl)$")
 
 logger = logging.getLogger("supervisor")
 
@@ -59,6 +62,11 @@ def requirement_name(requirement: str) -> str:
 	direct = DIRECT.match(requirement.strip())
 	text = direct.group("name") if direct else requirement.strip().split("==")[0]
 	return text.strip().lower().replace("_", "-").replace(".", "-")
+
+
+def release_of(requirement: str) -> Optional[re.Match]:
+	direct = DIRECT.match(requirement.strip())
+	return RELEASE.match(direct.group("url")) if direct else None
 
 
 def validate(requirement: str) -> Optional[str]:
@@ -92,6 +100,13 @@ class Config:
 		self.restarts: int = int(app.get("restarts", 3))
 		self.window: float = float(app.get("window", 60))
 		self.backoff: float = float(app.get("backoff", 2))
+
+	def release(self) -> Optional[re.Match]:
+		for package in self.packages:
+			found = release_of(package)
+			if found:
+				return found
+		return None
 
 	def problem(self) -> Optional[str]:
 		if not self.port:
@@ -152,6 +167,28 @@ class Packages:
 				continue
 			wanted.append(requirement)
 		return wanted
+
+	def follow_release(self) -> None:
+		release = self.__config.release()
+		payload = read_json(PLUGINS)
+		if release is None or not isinstance(payload, list):
+			return
+
+		moved = []
+		entries = []
+		for entry in payload:
+			requirement = str(entry).strip()
+			found = release_of(requirement)
+			if found and found["repo"] == release["repo"] and found["version"] != release["version"]:
+				name = DIRECT.match(requirement).group("name")
+				requirement = (f"{name} @ {release['repo']}/releases/download/v{release['version']}/"
+				               f"{found['wheel']}-{release['version']}-{found['tail']}")
+				moved.append(name)
+			entries.append(requirement)
+
+		if moved:
+			write_json(PLUGINS, entries)
+			logger.info("plugins follow release %s: %s", release["version"], ", ".join(moved))
 
 	@staticmethod
 	def recorded() -> List[str]:
@@ -296,6 +333,7 @@ class Supervisor:
 			             self.__config.port, ex)
 			return BUSY_CODE
 		logger.info("listening on %s:%d", HOST, self.__config.port)
+		await asyncio.to_thread(self.__packages.follow_release)
 
 		try:
 			return await self.__supervise()

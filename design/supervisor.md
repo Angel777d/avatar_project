@@ -62,6 +62,11 @@ Desired set is `config.packages` plus the plugins.
   Nothing ships one: the app writes it the first time a plugin is chosen, and from then on it is
   the answer and the defaults are not consulted again. Both the supervisor and the app read it
   the same way, so the manager shows the defaults as installed before anything is chosen.
+- **A chosen plugin from this project's releases follows the release.** At start, before the
+  first reconcile, any `plugins.json` url on the same repository as `config.packages` but another
+  version is rewritten to the version `config.json` names. The file itself is rewritten, not just
+  the desired set, so the manager reads the same answer. Anything from elsewhere is left as chosen.
+  Without it, re-running `install.bat` moved the core and left every plugin where it was chosen.
 - Validate every `plugins.json` entry before use: `name==version`, or an `https://github.com/…`
   url. No newline, no leading dash. Passed to uv as arguments, never through a requirements file.
 - `state.json` holds the desired set from the last successful reconcile. Equal means no work.
