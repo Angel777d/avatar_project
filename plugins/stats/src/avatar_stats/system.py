@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from avatar_api import Entity, Env, System, events
-from avatar_api.components import NotificationEC, StaticIdEC
+from avatar_api.components import PRIORITY_HIGH, NotificationEC, StaticIdEC
 from avatar_api.menu import add_menu_item
 from avatar_api.timelog import (
 	DATA,
@@ -152,6 +152,7 @@ class StatsSystem(System):
 				title="Time exported",
 				text=f"{written} rows written to {path}" if written else "nothing to export",
 				source=TYPE_NAME,
+				priority=PRIORITY_HIGH,
 			),
 		)
 

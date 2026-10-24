@@ -4,6 +4,10 @@ from typing import Hashable, Iterable, Optional, Set
 
 from angelovich.core.DataStorage import EntityComponent, EntityHashComponent
 
+PRIORITY_LOW = 0
+PRIORITY_NORMAL = 10
+PRIORITY_HIGH = 20
+
 
 class StaticIdEC(EntityHashComponent):
 	def __init__(self, static_id: Optional[str] = None):
@@ -74,12 +78,25 @@ class DurationEC(EntityComponent):
 
 
 class NotificationEC(EntityComponent):
-	def __init__(self, title: str = "", text: str = "", source: str = ""):
+	def __init__(self, title: str = "", text: str = "", source: str = "", priority: int = PRIORITY_NORMAL):
 		super().__init__()
 		self.title: str = title
 		self.text: str = text
 		self.source: str = source
+		self.priority: int = priority
 		self.created: datetime = datetime.now()
+
+
+class NotificationLevelEC(EntityComponent):
+	def __init__(self, level: int = PRIORITY_LOW):
+		super().__init__()
+		self.level: int = level
+
+
+class CurrentNotificationLevelEC(EntityComponent):
+	def __init__(self, level: int = PRIORITY_LOW):
+		super().__init__()
+		self.level: int = level
 
 
 class TimerEC(EntityHashComponent):

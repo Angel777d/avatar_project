@@ -5,7 +5,15 @@ from collections import deque
 from typing import Deque, Optional, Tuple
 
 from avatar_api import Entity, Env, System, events
-from avatar_api.components import ColorEC, MenuItemEC, NotificationEC, TimerEC
+from avatar_api.components import (
+	PRIORITY_HIGH,
+	PRIORITY_LOW,
+	ColorEC,
+	CurrentNotificationLevelEC,
+	MenuItemEC,
+	NotificationEC,
+	TimerEC,
+)
 from avatar_api.menu import menu_items
 
 from avatar_ui.components import AvatarViewEC, RenderDirtyEC
@@ -108,7 +116,14 @@ class AvatarSystem(System):
 	async def __on_menu_removed(self, entity_id: int):
 		self.__refresh_menu()
 
+	def __level(self) -> int:
+		for entity in self.env.data_storage.get_collection(CurrentNotificationLevelEC):
+			return entity.get_component(CurrentNotificationLevelEC).level
+		return PRIORITY_LOW
+
 	async def __on_notification(self, notification: NotificationEC):
+		if notification.priority < self.__level():
+			return
 		if notification.source == SOURCE_CLICK:
 			self.__queue.appendleft(notification)
 			self.__skip.set()
@@ -119,7 +134,7 @@ class AvatarSystem(System):
 	async def __on_clicked(self):
 		self.env.event_bus.dispatch(
 			events.REQUEST_NOTIFICATION_SHOW,
-			NotificationEC(text="Hello!", source=SOURCE_CLICK),
+			NotificationEC(text="Hello!", source=SOURCE_CLICK, priority=PRIORITY_HIGH),
 		)
 
 	async def __on_moved(self, position):
@@ -133,6 +148,8 @@ class AvatarSystem(System):
 				continue
 
 			notification = self.__queue.popleft()
+			if notification.priority < self.__level():
+				continue
 			self.__skip.clear()
 			self.__showing = True
 			self.__set_bubble(notification.text or notification.title)
@@ -156,7 +173,7 @@ class AvatarSystem(System):
 				continue
 			self.env.event_bus.dispatch(
 				events.REQUEST_NOTIFICATION_SHOW,
-				NotificationEC(text=random.choice(PHRASES), source=SOURCE),
+				NotificationEC(text=random.choice(PHRASES), source=SOURCE, priority=PRIORITY_LOW),
 			)
 
 	async def __watch_timer(self):

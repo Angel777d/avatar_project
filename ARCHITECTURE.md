@@ -36,7 +36,7 @@
 | event | meaning |
 | --- | --- |
 | `request.app.close` | unwind the application |
-| `request.notification.show` | show this `NotificationEC` — the avatar queues and speaks them |
+| `request.notification.show` | show this `NotificationEC` — the avatar queues and speaks them, skipping any whose `priority` is below the current level |
 | `request.page.show` (title, window="") | open the window and select that tab |
 | `request.timer.start` (name, started, duration) | run a named timer; starting an existing name replaces it |
 | `request.timer.cancel` (name) | drop it silently |
@@ -81,6 +81,7 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 - Saving happens at shutdown only — a crash costs the session.
 - The menu is data, split in two: `MenuItemEC` is what an entry is called, `ActionEC` is the event it dispatches. Core contributes `Close`.
 - **`ActionEC` is not menu-specific.** Any entity can carry one and be triggered with `trigger(event_bus, entity, *args)`; the menu is simply the first thing that does. `set_action` attaches or replaces one.
+- The notification level is data too: any system holds an entity carrying `NotificationLevelEC(level)` for as long as it wants quiet, and core keeps the highest on `CurrentNotificationLevelEC`, replacing the component on change. Pomodoro holds `PRIORITY_HIGH` for a sequence, so idle chatter (`PRIORITY_LOW`) and ordinary messages (`PRIORITY_NORMAL`) are dropped during it.
 - Timers are data too: `TimerEC` is keyed on its name and carries start and duration, so a UI reads the remaining time straight from storage. A `ColorEC` on the timer's entity is the colour the avatar draws its ring in.
 
 ## Launcher and release

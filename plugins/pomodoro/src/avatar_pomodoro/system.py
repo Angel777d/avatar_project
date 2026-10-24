@@ -4,7 +4,14 @@ from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 from avatar_api import Entity, Env, System, events
-from avatar_api.components import ColorEC, NotificationEC, StaticIdEC, TimerEC
+from avatar_api.components import (
+	PRIORITY_HIGH,
+	ColorEC,
+	NotificationEC,
+	NotificationLevelEC,
+	StaticIdEC,
+	TimerEC,
+)
 from avatar_api.menu import add_menu_item
 from avatar_api.timelog import log_data, log_time, measure
 from avatar_ui.components import RenderDirtyEC, TabEC, TabViewEC
@@ -65,6 +72,7 @@ class PomodoroSystem(System):
 		super().__init__(env)
 		self.__entity: Optional[Entity] = None
 		self.__menu: Optional[Entity] = None
+		self.__level: Optional[Entity] = None
 		self.__chain: Optional[PomodoroSettingsEC] = None
 		self.__phase = PHASE_IDLE
 		self.__total = 0.0
@@ -97,10 +105,10 @@ class PomodoroSystem(System):
 
 	async def stop(self):
 		await super().stop()
-		for entity in (self.__entity, self.__menu):
+		for entity in (self.__entity, self.__menu, self.__level):
 			if entity is not None:
 				self.env.data_storage.remove_entity(entity)
-		self.__entity = self.__menu = None
+		self.__entity = self.__menu = self.__level = None
 		self.env.data_storage.clear_collection(PomodoroSettingsEC)
 		self.env.data_storage.clear_collection(PomodoroChoiceEC)
 		self.env.data_storage.clear_collection(PomodoroLogEC)
@@ -197,6 +205,9 @@ class PomodoroSystem(System):
 		self.__chain = PomodoroSettingsEC(
 			chosen.name, chosen.work, chosen.short_break, chosen.long_break,
 			chosen.long_break_every, chosen.sequences)
+		if self.__level is None:
+			self.__level = self.env.data_storage.create_entity()
+			self.__level.add_component(NotificationLevelEC(PRIORITY_HIGH))
 
 	def __settings_view(self) -> dict:
 		settings = self.settings()
@@ -219,6 +230,9 @@ class PomodoroSystem(System):
 	def __idle(self):
 		self.__phase = PHASE_IDLE
 		self.__chain = None
+		level, self.__level = self.__level, None
+		if level is not None:
+			self.env.data_storage.remove_entity(level)
 		self.__segment = None
 		self.__total = float(self.settings().work)
 		self.__paused = self.__total
@@ -287,7 +301,7 @@ class PomodoroSystem(System):
 	def __notify(self, title: str, text: str):
 		self.env.event_bus.dispatch(
 			events.REQUEST_NOTIFICATION_SHOW,
-			NotificationEC(title=title, text=text, source=SOURCE),
+			NotificationEC(title=title, text=text, source=SOURCE, priority=PRIORITY_HIGH),
 		)
 
 	def __record(self):
