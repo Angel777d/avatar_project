@@ -4,13 +4,13 @@
 	"registry": "https://github.com/Angel777d/avatar_project/releases/latest/download/registry.json",
 	"packages": [
 		"angelovich.core==0.2.1",
-		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.5/avatar_api-0.4.5-py3-none-any.whl",
-		"avatar.core @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.5/avatar_core-0.4.5-py3-none-any.whl",
-		"avatar.ui @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.5/avatar_ui-0.4.5-py3-none-any.whl"
+		"avatar.api @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.6/avatar_api-0.4.6-py3-none-any.whl",
+		"avatar.core @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.6/avatar_core-0.4.6-py3-none-any.whl",
+		"avatar.ui @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.6/avatar_ui-0.4.6-py3-none-any.whl"
 	],
 	"plugins": [
-		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.5/avatar_default-0.4.5-py3-none-any.whl",
-		"avatar_manager @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.5/avatar_manager-0.4.5-py3-none-any.whl"
+		"avatar_default @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.6/avatar_default-0.4.6-py3-none-any.whl",
+		"avatar_manager @ https://github.com/Angel777d/avatar_project/releases/download/v0.4.6/avatar_manager-0.4.6-py3-none-any.whl"
 	],
 	"app": {
 		"module": "avatar_core",
