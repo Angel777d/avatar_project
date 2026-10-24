@@ -55,7 +55,7 @@ class ManagerSystem(System):
 
 		self.__register()
 
-		self.__reload(False)
+		self.__reload(True)
 
 	async def stop(self):
 		await super().stop()

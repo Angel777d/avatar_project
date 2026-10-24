@@ -107,9 +107,10 @@ step and no binary. [design/supervisor.md](design/supervisor.md) has the detail.
 - The app is assigned to a **job object**, so it dies with the supervisor however that happens.
 
 - `config.json` also names the **registry**, the catalogue `avatar_manager` offers plugins from.
-  It is a released asset rather than something inside the manager's wheel, fetched and cached on
-  the first run and refetched by the page's Refresh, so the catalogue can move without shipping
-  a new manager.
+  It is a released asset rather than something inside the manager's wheel, fetched at every start and
+  by the page's Refresh, so the catalogue can move without shipping a new manager. The cached copy
+  is only the offline fallback: read as the answer, it lagged a release behind what was installed
+  and offered the older wheels as an update.
 
 A checkout runs `avatar_core` directly out of an editable install; the README has the line. The
 release workflow publishes `supervisor.py`, `config.json`, `install.bat`, `avatar.ico`,
