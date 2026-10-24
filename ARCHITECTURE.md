@@ -81,7 +81,7 @@ A plugin's own events are its own business — `request.kanban.*`, `request.pomo
 - Saving happens at shutdown only — a crash costs the session.
 - The menu is data, split in two: `MenuItemEC` is what an entry is called, `ActionEC` is the event it dispatches. Core contributes `Close`.
 - **`ActionEC` is not menu-specific.** Any entity can carry one and be triggered with `trigger(event_bus, entity, *args)`; the menu is simply the first thing that does. `set_action` attaches or replaces one.
-- Timers are data too: `TimerEC` is keyed on its name and carries start and duration, so a UI reads the remaining time straight from storage.
+- Timers are data too: `TimerEC` is keyed on its name and carries start and duration, so a UI reads the remaining time straight from storage. A `ColorEC` on the timer's entity is the colour the avatar draws its ring in.
 
 ## Launcher and release
 

@@ -15,4 +15,5 @@ class PageView:
 class AvatarView:
 	bubble: str = ""
 	timer_progress: float = -1.0
+	timer_color: str = ""
 	menu: List[Tuple[int, str]] = field(default_factory=list)

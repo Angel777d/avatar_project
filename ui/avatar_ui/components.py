@@ -50,10 +50,12 @@ class AvatarViewEC(EntityComponent):
 	def __init__(self,
 	             bubble: str = "",
 	             timer_progress: float = -1.0,
+	             timer_color: str = "",
 	             menu: List[Tuple[int, str]] = None):
 		super().__init__()
 		self.bubble: str = bubble
 		self.timer_progress: float = timer_progress
+		self.timer_color: str = timer_color
 		self.menu: List[Tuple[int, str]] = list(menu or [])
 
 

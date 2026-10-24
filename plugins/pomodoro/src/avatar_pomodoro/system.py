@@ -1,9 +1,10 @@
 import json
+from winsound import PlaySound, SND_ASYNC, SND_ALIAS
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 from avatar_api import Entity, Env, System, events
-from avatar_api.components import NotificationEC, StaticIdEC, TimerEC
+from avatar_api.components import ColorEC, NotificationEC, StaticIdEC, TimerEC
 from avatar_api.menu import add_menu_item
 from avatar_api.timelog import log_data, log_time, measure
 from avatar_ui.components import RenderDirtyEC, TabEC, TabViewEC
@@ -41,6 +42,16 @@ PHASE_BREAK = "break"
 MIN_SECONDS = 1
 MAX_SECONDS = 24 * 60 * 60
 MIN_LOGGED = 1.0
+
+COLORS = {
+	PHASE_WORK: "#e8615a",
+	PHASE_BREAK: "#57b98a",
+}
+
+SOUNDS = {
+	PHASE_WORK: "Notification.Default", # "SystemAsterisk",
+	PHASE_BREAK: "Notification.Looping.Alarm2", # "SystemExclamation"
+}
 
 LABELS = {
 	PHASE_IDLE: "Ready",
@@ -240,6 +251,9 @@ class PomodoroSystem(System):
 		await self.env.event_bus.dispatch_async(
 			events.REQUEST_TIMER_START, TIMER, datetime.now(), timedelta(seconds=seconds)
 		)
+		entity = self.env.data_storage.get_collection(TimerEC).find(TimerEC.make_hash(TIMER))
+		if entity is not None and self.__phase in COLORS:
+			entity.add_component(ColorEC(COLORS[self.__phase]))
 
 	def __log_segment(self):
 		started, self.__segment = self.__segment, None
@@ -280,6 +294,7 @@ class PomodoroSystem(System):
 		self.log().add(date.today(), float(self.active().work))
 
 	async def __finish(self):
+		_chime(self.__phase)
 		self.__log_segment()
 		if self.__phase == PHASE_WORK:
 			self.__record()
@@ -382,6 +397,11 @@ class PomodoroSystem(System):
 			return
 		await self.__cancel()
 		await self.__finish()
+
+
+def _chime(phase: str) -> None:
+	if phase in SOUNDS:
+		PlaySound(SOUNDS[phase], SND_ALIAS | SND_ASYNC)
 
 
 def _clamp(value: float, fallback: float) -> float:

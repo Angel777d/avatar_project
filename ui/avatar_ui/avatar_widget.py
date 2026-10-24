@@ -20,6 +20,7 @@ from avatar_ui.transparent import TransparentWindow
 
 AVATAR_SIZE = 128
 RING_WIDTH = 4
+RING_COLOR = QColor(255, 198, 109)
 BUBBLE_MAX_W = 236
 MARGIN = 14
 BOB_AMPLITUDE = 5
@@ -38,6 +39,7 @@ class AvatarWidget(TransparentWindow):
 		self.__bubble_text = ""
 		self.__bubble_rect = QRect()
 		self.__timer_progress: float = -1.0
+		self.__timer_color = RING_COLOR
 		self.__menu: List[Tuple[int, str]] = []
 
 		base_x = (self.width() - AVATAR_SIZE) // 2
@@ -51,6 +53,8 @@ class AvatarWidget(TransparentWindow):
 		if state is None:
 			return
 		self.__timer_progress = state.timer_progress
+		color = QColor(state.timer_color)
+		self.__timer_color = color if color.isValid() else RING_COLOR
 		self.__menu = list(state.menu)
 		if state.bubble != self.__bubble_text:
 			self.set_bubble(state.bubble)
@@ -147,7 +151,7 @@ class AvatarWidget(TransparentWindow):
 		painter.setBrush(Qt.NoBrush)
 		painter.setPen(QPen(QColor(255, 255, 255, 40), RING_WIDTH))
 		painter.drawEllipse(ring)
-		painter.setPen(QPen(QColor(255, 198, 109), RING_WIDTH, Qt.SolidLine, Qt.RoundCap))
+		painter.setPen(QPen(self.__timer_color, RING_WIDTH, Qt.SolidLine, Qt.RoundCap))
 		painter.drawArc(ring, 90 * 16, -int(360 * 16 * left))
 
 	def __paint_avatar(self, painter) -> None:

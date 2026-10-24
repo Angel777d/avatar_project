@@ -2,10 +2,10 @@ import asyncio
 import random
 import time
 from collections import deque
-from typing import Deque, Optional
+from typing import Deque, Optional, Tuple
 
 from avatar_api import Entity, Env, System, events
-from avatar_api.components import MenuItemEC, NotificationEC, TimerEC
+from avatar_api.components import ColorEC, MenuItemEC, NotificationEC, TimerEC
 from avatar_api.menu import menu_items
 
 from avatar_ui.components import AvatarViewEC, RenderDirtyEC
@@ -81,11 +81,12 @@ class AvatarSystem(System):
 		view.bubble = text
 		self.__mark_dirty()
 
-	def __set_timer_progress(self, value: float):
+	def __set_timer_progress(self, value: float, color: str = ""):
 		view = self.__view()
 		if view is None:
 			return
 		view.timer_progress = value
+		view.timer_color = color
 		self.__mark_dirty()
 
 	def __refresh_menu(self):
@@ -164,7 +165,7 @@ class AvatarSystem(System):
 			timer = self.__running_timer()
 			if timer is not None:
 				self.__had_timer = True
-				self.__set_timer_progress(self.__timer_progress())
+				self.__set_timer_progress(*self.__timer_progress())
 			elif self.__had_timer:
 				self.__had_timer = False
 				self.__set_timer_progress(-1.0)
@@ -174,15 +175,14 @@ class AvatarSystem(System):
 			return entity
 		return None
 
-	def __timer_progress(self) -> float:
-		timers = [
-			entity.get_component(TimerEC)
-			for entity in self.env.data_storage.get_collection(TimerEC)
-		]
-		if not timers:
-			return -1.0
-		timer = min(timers, key=lambda item: item.deadline())
+	def __timer_progress(self) -> Tuple[float, str]:
+		entities = list(self.env.data_storage.get_collection(TimerEC))
+		if not entities:
+			return -1.0, ""
+		entity = min(entities, key=lambda item: item.get_component(TimerEC).deadline())
+		timer = entity.get_component(TimerEC)
+		color = entity.get_component(ColorEC).value if entity.has_component(ColorEC) else ""
 		span = timer.duration.total_seconds()
 		if span <= 0:
-			return 0.0
-		return max(0.0, min(1.0, timer.remaining() / span))
+			return 0.0, color
+		return max(0.0, min(1.0, timer.remaining() / span)), color

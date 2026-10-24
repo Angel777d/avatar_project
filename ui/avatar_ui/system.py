@@ -177,6 +177,7 @@ class UiSystem(System):
 		self.__avatar.set(AvatarView(
 			bubble=view.bubble,
 			timer_progress=view.timer_progress,
+			timer_color=view.timer_color,
 			menu=list(view.menu),
 		))
 
